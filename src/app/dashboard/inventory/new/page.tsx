@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Save } from 'lucide-react'
@@ -11,6 +11,11 @@ export default function NewInventoryPage() {
   const router = useRouter()
   const supabase = createClient()
   const [loading, setLoading] = useState(false)
+  const [goldPrice, setGoldPrice] = useState<number | null>(null)
+  const [loadingGold, setLoadingGold] = useState(false)
+  const [useGoldPrice, setUseGoldPrice] = useState(true)
+  const [manualGoldPrice, setManualGoldPrice] = useState('')
+  const [showManualInput, setShowManualInput] = useState(false)
   const [formData, setFormData] = useState({
     seri: generateSerialNumber('STK'),
     tanggal: new Date().toISOString().split('T')[0],
@@ -21,6 +26,29 @@ export default function NewInventoryPage() {
     harga: '',
     keterangan: ''
   })
+
+  useEffect(() => {
+    // fetch the server-side proxy that attempts to get Antam price
+    const fetchGold = async () => {
+      setLoadingGold(true)
+      try {
+        const res = await fetch('/api/gold-price')
+        const data = await res.json()
+        if (data && data.pricePerGram) {
+          setGoldPrice(Number(data.pricePerGram))
+        } else {
+          setGoldPrice(null)
+        }
+      } catch (err) {
+        console.error('Failed to fetch gold price', err)
+        setGoldPrice(null)
+      } finally {
+        setLoadingGold(false)
+      }
+    }
+
+    fetchGold()
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -52,10 +80,22 @@ export default function NewInventoryPage() {
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    setFormData(prev => ({
-      ...prev,
-      [e.target.name]: e.target.value
-    }))
+    const { name, value } = e.target
+
+    setFormData(prev => {
+      const next = { ...prev, [name]: value }
+
+      // If berat changes and we use gold price, auto-calc harga
+      if (name === 'berat' && useGoldPrice && goldPrice) {
+        const beratNum = parseFloat(String(value))
+        if (!isNaN(beratNum)) {
+          // round to nearest integer IDR
+          next.harga = String(Math.round(beratNum * goldPrice))
+        }
+      }
+
+      return next
+    })
   }
 
   return (
@@ -175,15 +215,93 @@ export default function NewInventoryPage() {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Harga (Rp) <span className="text-red-500">*</span>
             </label>
-            <input
-              type="number"
-              name="harga"
-              value={formData.harga}
-              onChange={handleChange}
-              required
-              placeholder="0"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black"
-            />
+            <div className="flex items-center gap-3">
+              <input
+                type="number"
+                name="harga"
+                value={formData.harga}
+                onChange={(e) => {
+                  // if user edits harga manually, disable auto calc
+                  setUseGoldPrice(false)
+                  const target = e.target as HTMLInputElement
+                  const { name, value } = target
+                  setFormData(prev => ({ ...prev, [name]: value }))
+                }}
+                required
+                placeholder="0"
+                className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black"
+              />
+
+              <button
+                type="button"
+                onClick={async () => {
+                  setUseGoldPrice(v => !v)
+                  // if enabling and we have goldPrice and berat, compute right away
+                  if (!useGoldPrice && goldPrice) {
+                    const beratNum = parseFloat(String(formData.berat))
+                    if (!isNaN(beratNum)) {
+                      setFormData(prev => ({ ...prev, harga: String(Math.round(beratNum * goldPrice)) }))
+                    }
+                  }
+                }}
+                className={`px-3 py-2 border rounded-lg text-sm ${useGoldPrice ? 'bg-amber-500 text-white border-amber-500' : 'text-gray-700 bg-white'}`}
+                title={useGoldPrice ? 'Auto calculate from current gold price' : 'Manual harga'}
+              >
+                {useGoldPrice ? 'Auto' : 'Manual'}
+              </button>
+            </div>
+
+            <div className="mt-2 space-y-2">
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                {loadingGold ? (
+                  <span>Memuat harga emas...</span>
+                ) : goldPrice ? (
+                  <span>Harga acuan Pluang: Rp {new Intl.NumberFormat('id-ID').format(goldPrice)} / gram</span>
+                ) : (
+                  <span>Tidak dapat mengambil harga Antam otomatis</span>
+                )}
+                {!goldPrice && !loadingGold && (
+                  <button
+                    type="button"
+                    onClick={() => setShowManualInput(!showManualInput)}
+                    className="text-amber-600 hover:text-amber-700 underline text-xs"
+                  >
+                    {showManualInput ? 'Sembunyikan' : 'Input manual'}
+                  </button>
+                )}
+              </div>
+
+              {showManualInput && (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    value={manualGoldPrice}
+                    onChange={(e) => setManualGoldPrice(e.target.value)}
+                    placeholder="Harga emas per gram (Rp)"
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const price = parseFloat(manualGoldPrice)
+                      if (!isNaN(price) && price > 0) {
+                        setGoldPrice(price)
+                        setShowManualInput(false)
+                        setUseGoldPrice(true)
+                        // auto-calc if berat exists
+                        const beratNum = parseFloat(String(formData.berat))
+                        if (!isNaN(beratNum)) {
+                          setFormData(prev => ({ ...prev, harga: String(Math.round(beratNum * price)) }))
+                        }
+                      }
+                    }}
+                    className="px-3 py-2 bg-amber-500 text-white rounded-lg text-sm hover:bg-amber-600"
+                  >
+                    Set
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="md:col-span-2">
@@ -206,7 +324,7 @@ export default function NewInventoryPage() {
           <button
             type="submit"
             disabled={loading}
-            className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-amber-500 to-yellow-500 text-white rounded-lg hover:from-amber-600 hover:to-yellow-600 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-linear-to-r from-amber-500 to-yellow-500 text-white rounded-lg hover:from-amber-600 hover:to-yellow-600 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? (
               <>
