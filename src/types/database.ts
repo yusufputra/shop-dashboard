@@ -34,6 +34,7 @@ export interface Database {
           pembelian_seri: string | null
           keterangan: string | null
           images: string[] | null
+          warna: string | null
           created_at: string
         }
         Insert: {
@@ -48,6 +49,7 @@ export interface Database {
           pembelian_seri?: string | null
           keterangan?: string | null
           images?: string[] | null
+          warna?: string | null
           created_at?: string
         }
         Update: {
@@ -62,6 +64,7 @@ export interface Database {
           pembelian_seri?: string | null
           keterangan?: string | null
           images?: string[] | null
+          warna?: string | null
           created_at?: string
         }
       }

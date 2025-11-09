@@ -269,14 +269,14 @@ export default function NewSalePage() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Biaya Tambahan (Rp)
+              Ongkos (Rp)
             </label>
             <input
               type="number"
               name="biaya"
               value={formData.biaya}
               onChange={handleChange}
-              placeholder="Biaya tambahan (opsional)"
+              placeholder="Ongkos (opsional)"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black"
             />
           </div>

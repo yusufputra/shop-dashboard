@@ -3,17 +3,29 @@
 import { useEffect, useState, use } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Edit, Trash2, Calendar, Tag, Package, Weight, DollarSign, FileText } from 'lucide-react'
+import { ArrowLeft, Edit, Trash2, Calendar, Tag, Package, Weight, DollarSign, FileText, User, Phone, MapPin, ShoppingCart } from 'lucide-react'
 import Link from 'next/link'
 import { formatCurrency, formatWeight } from '@/lib/utils'
 import { StokPerhiasan } from '@/types/database'
 import Image from 'next/image'
+
+interface SaleInfo {
+  no: string
+  tanggal: string
+  nama_pembeli: string
+  alamat: string
+  no_telp: string | null
+  harga_jual: number
+  biaya: number | null
+  keterangan: string | null
+}
 
 export default function InventoryDetailPage({ params }: { params: Promise<{ seri: string }> }) {
   const { seri } = use(params)
   const router = useRouter()
   const supabase = createClient()
   const [item, setItem] = useState<StokPerhiasan | null>(null)
+  const [saleInfo, setSaleInfo] = useState<SaleInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState(false)
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
@@ -28,10 +40,25 @@ export default function InventoryDetailPage({ params }: { params: Promise<{ seri
 
       if (error) throw error
       setItem(data)
-      
+
       // Set first image as selected if available
       if (data.images && data.images.length > 0) {
         setSelectedImage(data.images[0])
+      }
+
+      // If item is sold, fetch sale information
+      if (data.status === 'sold') {
+        const { data: saleData, error: saleError } = await supabase
+          .from('penjualan_perhiasan')
+          .select('no, tanggal, nama_pembeli, alamat, no_telp, harga_jual, biaya, keterangan')
+          .eq('stok_seri', seri)
+          .single()
+
+        if (saleError) {
+          console.error('Error loading sale info:', saleError)
+        } else {
+          setSaleInfo(saleData)
+        }
       }
     } catch (error) {
       console.error('Error loading item:', error)
@@ -133,7 +160,7 @@ export default function InventoryDetailPage({ params }: { params: Promise<{ seri
         {/* Images Section */}
         <div className="bg-white rounded-xl shadow-md p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Foto Perhiasan</h2>
-          
+
           {item.images && item.images.length > 0 ? (
             <div className="space-y-4">
               {/* Main Image */}
@@ -154,11 +181,10 @@ export default function InventoryDetailPage({ params }: { params: Promise<{ seri
                     <button
                       key={index}
                       onClick={() => setSelectedImage(imageUrl)}
-                      className={`aspect-square rounded-lg overflow-hidden border-2 transition-all ${
-                        selectedImage === imageUrl
+                      className={`aspect-square rounded-lg overflow-hidden border-2 transition-all ${selectedImage === imageUrl
                           ? 'border-amber-500 ring-2 ring-amber-200'
                           : 'border-gray-200 hover:border-amber-300'
-                      }`}
+                        }`}
                     >
                       <Image
                         src={imageUrl}
@@ -189,16 +215,9 @@ export default function InventoryDetailPage({ params }: { params: Promise<{ seri
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Status</h2>
             <div className="space-y-3">
               {item.status === 'sold' ? (
-                <>
-                  <span className="inline-block px-4 py-2 bg-red-100 text-red-900 rounded-full text-sm font-medium">
-                    Terjual
-                  </span>
-                  {item.pembelian_seri && (
-                    <div className="text-sm text-gray-600">
-                      Referensi Pembelian: <span className="font-medium text-gray-900">{item.pembelian_seri}</span>
-                    </div>
-                  )}
-                </>
+                <span className="inline-block px-4 py-2 bg-red-100 text-red-900 rounded-full text-sm font-medium">
+                  Terjual
+                </span>
               ) : (
                 <span className="inline-block px-4 py-2 bg-green-100 text-green-900 rounded-full text-sm font-medium">
                   Tersedia
@@ -206,6 +225,105 @@ export default function InventoryDetailPage({ params }: { params: Promise<{ seri
               )}
             </div>
           </div>
+
+          {/* Sale Information Card - Only show when item is sold */}
+          {item.status === 'sold' && saleInfo && (
+            <div className="bg-white rounded-xl shadow-md p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <ShoppingCart className="w-5 h-5 text-amber-600" />
+                <h2 className="text-lg font-semibold text-gray-900">Informasi Penjualan</h2>
+              </div>
+              <div className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <Tag className="w-5 h-5 text-gray-400 mt-0.5" />
+                  <div>
+                    <p className="text-sm text-gray-600">No. Penjualan</p>
+                    <p className="text-base font-medium text-gray-900">{saleInfo.no}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <Calendar className="w-5 h-5 text-gray-400 mt-0.5" />
+                  <div>
+                    <p className="text-sm text-gray-600">Tanggal Penjualan</p>
+                    <p className="text-base font-medium text-gray-900">
+                      {new Date(saleInfo.tanggal).toLocaleDateString('id-ID', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <User className="w-5 h-5 text-gray-400 mt-0.5" />
+                  <div>
+                    <p className="text-sm text-gray-600">Nama Pembeli</p>
+                    <p className="text-base font-medium text-gray-900">{saleInfo.nama_pembeli}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <MapPin className="w-5 h-5 text-gray-400 mt-0.5" />
+                  <div>
+                    <p className="text-sm text-gray-600">Alamat</p>
+                    <p className="text-base text-gray-900">{saleInfo.alamat}</p>
+                  </div>
+                </div>
+
+                {saleInfo.no_telp && (
+                  <div className="flex items-start gap-3">
+                    <Phone className="w-5 h-5 text-gray-400 mt-0.5" />
+                    <div>
+                      <p className="text-sm text-gray-600">No. Telepon</p>
+                      <p className="text-base font-medium text-gray-900">{saleInfo.no_telp}</p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="pt-3 border-t border-gray-200">
+                  <div className="space-y-2">
+                    {saleInfo.biaya && saleInfo.biaya > 0 && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">Ongkos</span>
+                        <span className="text-base font-medium text-gray-900">
+                          {formatCurrency(Number(saleInfo.biaya))}
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                      <span className="text-base font-semibold text-gray-900">Harga Jual</span>
+                      <span className="text-xl font-bold text-amber-600">
+                        {formatCurrency(Number(saleInfo.harga_jual))}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {saleInfo.keterangan && (
+                  <div className="flex items-start gap-3 pt-3 border-t border-gray-200">
+                    <FileText className="w-5 h-5 text-gray-400 mt-0.5" />
+                    <div>
+                      <p className="text-sm text-gray-600">Keterangan Penjualan</p>
+                      <p className="text-base text-gray-900">{saleInfo.keterangan}</p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="pt-3 border-t border-gray-200">
+                  <Link
+                    href={`/dashboard/sales/${saleInfo.no}`}
+                    className="block w-full text-center px-4 py-2 bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100 transition-colors font-medium"
+                  >
+                    Lihat Detail Penjualan
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Information Card */}
           <div className="bg-white rounded-xl shadow-md p-6">
@@ -229,10 +347,20 @@ export default function InventoryDetailPage({ params }: { params: Promise<{ seri
               <div className="flex items-start gap-3">
                 <Tag className="w-5 h-5 text-gray-400 mt-0.5" />
                 <div>
-                  <p className="text-sm text-gray-600">Jenis</p>
+                  <p className="text-sm text-gray-600">Kadar</p>
                   <p className="text-base font-medium text-gray-900">{item.jenis}</p>
                 </div>
               </div>
+
+              {item.warna && (
+                <div className="flex items-start gap-3">
+                  <Tag className="w-5 h-5 text-gray-400 mt-0.5" />
+                  <div>
+                    <p className="text-sm text-gray-600">Warna</p>
+                    <p className="text-base font-medium text-gray-900 capitalize">{item.warna}</p>
+                  </div>
+                </div>
+              )}
 
               <div className="flex items-start gap-3">
                 <Package className="w-5 h-5 text-gray-400 mt-0.5" />

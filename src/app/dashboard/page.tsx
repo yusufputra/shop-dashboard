@@ -50,7 +50,7 @@ export default function DashboardPage() {
   const loadMonthlyData = useCallback(async () => {
     try {
       const [salesData, purchasesData, ordersData] = await Promise.all([
-        supabase.from('penjualan_perhiasan').select('tanggal, harga_jual, biaya'),
+        supabase.from('penjualan_perhiasan').select('tanggal, harga_jual'),
         supabase.from('pembelian_perhiasan').select('tanggal, harga'),
         supabase.from('pesanan_perhiasan').select('tanggal, harga')
       ])
@@ -72,7 +72,7 @@ export default function DashboardPage() {
         const date = new Date(sale.tanggal)
         const monthKey = monthNames[date.getMonth()]
         if (monthlyStats[monthKey]) {
-          monthlyStats[monthKey].penjualan += Number(sale.harga_jual) + Number(sale.biaya || 0)
+          monthlyStats[monthKey].penjualan += Number(sale.harga_jual)
         }
       })
 
@@ -132,7 +132,7 @@ export default function DashboardPage() {
       ])
 
       // Calculate total revenue from sales + custom orders
-      const salesRevenue = sales.data?.reduce((sum, sale) => sum + Number(sale.harga_jual) + Number(sale.biaya || 0), 0) || 0
+      const salesRevenue = sales.data?.reduce((sum, sale) => sum + Number(sale.harga_jual), 0) || 0
       const totalRevenue = salesRevenue
 
       // Calculate total purchase amount
@@ -155,7 +155,7 @@ export default function DashboardPage() {
           tanggal: sale.tanggal,
           tipe: 'Penjualan',
           deskripsi: `${sale.nama_pembeli} - Seri: ${sale.stok_seri}`,
-          jumlah: Number(sale.harga_jual) + Number(sale.biaya || 0)
+          jumlah: Number(sale.harga_jual)
         })
       })
 

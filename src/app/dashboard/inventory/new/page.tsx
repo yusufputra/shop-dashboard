@@ -16,7 +16,7 @@ function NewInventoryForm() {
   const [loading, setLoading] = useState(false)
   const [goldPrice, setGoldPrice] = useState<number | null>(null)
   const [loadingGold, setLoadingGold] = useState(false)
-  const [useGoldPrice, setUseGoldPrice] = useState(true)
+  const [useGoldPrice, setUseGoldPrice] = useState(false)
   const [manualGoldPrice, setManualGoldPrice] = useState('')
   const [showManualInput, setShowManualInput] = useState(false)
   const [selectedImages, setSelectedImages] = useState<File[]>([])
@@ -31,7 +31,8 @@ function NewInventoryForm() {
     berat: '',
     harga: '',
     pembelian_seri: '',
-    keterangan: ''
+    keterangan: '',
+    warna: ''
   })
 
   useEffect(() => {
@@ -56,7 +57,8 @@ function NewInventoryForm() {
             model: data.model,
             berat: data.berat.toString(),
             pembelian_seri: data.seri,
-            keterangan: data.keterangan || ''
+            keterangan: data.keterangan || '',
+            warna: ''
           }))
         }
       } catch (error) {
@@ -164,7 +166,8 @@ function NewInventoryForm() {
           harga: parseFloat(formData.harga),
           pembelian_seri: formData.pembelian_seri || null,
           keterangan: formData.keterangan || null,
-          images: imageUrls.length > 0 ? imageUrls : null
+          images: imageUrls.length > 0 ? imageUrls : null,
+          warna: formData.warna || null
         }])
 
       if (error) throw error
@@ -264,7 +267,7 @@ function NewInventoryForm() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Jenis <span className="text-red-500">*</span>
+              Kadar <span className="text-red-500">*</span>
             </label>
             <select
               name="jenis"
@@ -273,12 +276,49 @@ function NewInventoryForm() {
               required
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black"
             >
-              <option value="">Pilih Jenis</option>
-              <option value="Emas Kuning 18K">Emas Kuning 18K</option>
-              <option value="Emas Kuning 14K">Emas Kuning 14K</option>
-              <option value="Emas Merah 18K">Emas Merah 18K</option>
-              <option value="Emas Putih 18K">Emas Putih 18K</option>
-              <option value="Perak">Perak</option>
+              <option value="">Pilih Kadar</option>
+              <option value="1K">1K</option>
+              <option value="2K">2K</option>
+              <option value="3K">3K</option>
+              <option value="4K">4K</option>
+              <option value="5K">5K</option>
+              <option value="6K">6K</option>
+              <option value="7K">7K</option>
+              <option value="8K">8K</option>
+              <option value="9K">9K</option>
+              <option value="10K">10K</option>
+              <option value="11K">11K</option>
+              <option value="12K">12K</option>
+              <option value="13K">13K</option>
+              <option value="14K">14K</option>
+              <option value="15K">15K</option>
+              <option value="16K">16K</option>
+              <option value="17K">17K</option>
+              <option value="18K">18K</option>
+              <option value="19K">19K</option>
+              <option value="20K">20K</option>
+              <option value="21K">21K</option>
+              <option value="22K">22K</option>
+              <option value="23K">23K</option>
+              <option value="24K">24K</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Warna <span className="text-red-500">*</span>
+            </label>
+            <select
+              name="warna"
+              value={formData.warna}
+              onChange={handleChange}
+              required
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black"
+            >
+              <option value="">Pilih Warna</option>
+              <option value="kuning">Kuning</option>
+              <option value="rosegold">Rosegold</option>
+              <option value="putih">Putih</option>
             </select>
           </div>
 
@@ -286,15 +326,20 @@ function NewInventoryForm() {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Perhiasan <span className="text-red-500">*</span>
             </label>
-            <input
-              type="text"
+            <select
               name="perhiasan"
               value={formData.perhiasan}
               onChange={handleChange}
               required
-              placeholder="Contoh: Cincin, Kalung, Gelang"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black"
-            />
+            >
+              <option value="">Pilih Perhiasan</option>
+              <option value="Kalung">Kalung</option>
+              <option value="Gelang">Gelang</option>
+              <option value="Cincin">Cincin</option>
+              <option value="Anting">Anting</option>
+              <option value="Liontin">Liontin</option>
+            </select>
           </div>
 
           <div>

@@ -197,7 +197,7 @@ export default function CalculatorPage() {
                   step="0.1"
                   value={mixInputs.gold}
                   onChange={(e) => setMixInputs(prev => ({ ...prev, gold: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none text-black"
                   placeholder="0.0"
                 />
               </div>
@@ -211,7 +211,7 @@ export default function CalculatorPage() {
                   step="0.1"
                   value={mixInputs.silver}
                   onChange={(e) => setMixInputs(prev => ({ ...prev, silver: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none text-black"
                   placeholder="0.0"
                 />
               </div>
@@ -225,7 +225,7 @@ export default function CalculatorPage() {
                   step="0.1"
                   value={mixInputs.copper}
                   onChange={(e) => setMixInputs(prev => ({ ...prev, copper: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none text-black"
                   placeholder="0.0"
                 />
               </div>
@@ -239,7 +239,7 @@ export default function CalculatorPage() {
                   step="0.1"
                   value={mixInputs.platinum}
                   onChange={(e) => setMixInputs(prev => ({ ...prev, platinum: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none text-black"
                   placeholder="0.0"
                 />
               </div>
@@ -253,7 +253,7 @@ export default function CalculatorPage() {
                   step="0.1"
                   value={mixInputs.paladium}
                   onChange={(e) => setMixInputs(prev => ({ ...prev, paladium: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none text-black"
                   placeholder="0.0"
                 />
               </div>

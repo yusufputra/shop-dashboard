@@ -157,7 +157,7 @@ export default function EditSalePage({ params }: { params: Promise<{ id: string 
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Biaya Tambahan (Rp)
+              Ongkos (Rp)
             </label>
             <input
               type="number"

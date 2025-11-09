@@ -63,7 +63,7 @@ export default function SaleDetailPage({ params }: { params: Promise<{ id: strin
 
       if (error) throw error
       setSale(data as SaleDetail)
-      
+
       // Set first image as selected if available
       if (data.stok_perhiasan.images && data.stok_perhiasan.images.length > 0) {
         setSelectedImage(data.stok_perhiasan.images[0])
@@ -163,7 +163,7 @@ export default function SaleDetailPage({ params }: { params: Promise<{ id: strin
         {/* Stock Item Info */}
         <div className="bg-white rounded-xl shadow-md p-6 space-y-4">
           <h2 className="text-xl font-bold text-gray-900 border-b pb-3">Informasi Barang</h2>
-          
+
           {images && images.length > 0 ? (
             <div className="space-y-4">
               {/* Main Image */}
@@ -183,11 +183,10 @@ export default function SaleDetailPage({ params }: { params: Promise<{ id: strin
                     <button
                       key={index}
                       onClick={() => setSelectedImage(imageUrl)}
-                      className={`aspect-square rounded-lg overflow-hidden border-2 transition-all ${
-                        selectedImage === imageUrl
+                      className={`aspect-square rounded-lg overflow-hidden border-2 transition-all ${selectedImage === imageUrl
                           ? 'border-amber-500 ring-2 ring-amber-200'
                           : 'border-gray-200 hover:border-amber-300'
-                      }`}
+                        }`}
                     >
                       <Image
                         src={imageUrl}
@@ -258,7 +257,7 @@ export default function SaleDetailPage({ params }: { params: Promise<{ id: strin
         <div className="space-y-6">
           <div className="bg-white rounded-xl shadow-md p-6 space-y-4">
             <h2 className="text-xl font-bold text-gray-900 border-b pb-3">Informasi Penjualan</h2>
-            
+
             <div className="flex items-start gap-3">
               <Calendar className="w-5 h-5 text-gray-400 mt-1" />
               <div>
@@ -281,25 +280,18 @@ export default function SaleDetailPage({ params }: { params: Promise<{ id: strin
                   Rp {sale.harga_jual.toLocaleString('id-ID')}
                 </p>
               </div>
-              
+
               {sale.biaya && sale.biaya > 0 && (
                 <>
                   <div className="border-t border-amber-200 pt-2">
-                    <p className="text-sm text-gray-600">Biaya Tambahan</p>
+                    <p className="text-sm text-gray-600">Ongkos</p>
                     <p className="text-lg font-semibold text-gray-700">
                       Rp {sale.biaya.toLocaleString('id-ID')}
                     </p>
                   </div>
-                  
-                  <div className="border-t border-amber-300 pt-2">
-                    <p className="text-sm text-gray-600">Total Harga</p>
-                    <p className="text-3xl font-bold text-amber-700">
-                      Rp {(sale.harga_jual + sale.biaya).toLocaleString('id-ID')}
-                    </p>
-                  </div>
                 </>
               )}
-              
+
               {sale.harga_jual > sale.stok_perhiasan.harga && (
                 <div className="border-t border-amber-200 pt-2">
                   <p className="text-sm text-green-600 font-medium">
@@ -319,7 +311,7 @@ export default function SaleDetailPage({ params }: { params: Promise<{ id: strin
 
           <div className="bg-white rounded-xl shadow-md p-6 space-y-4">
             <h2 className="text-xl font-bold text-gray-900 border-b pb-3">Informasi Pembeli</h2>
-            
+
             <div className="flex items-start gap-3">
               <User className="w-5 h-5 text-gray-400 mt-1" />
               <div>

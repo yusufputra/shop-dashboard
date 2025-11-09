@@ -38,14 +38,14 @@ export default function SalesPage() {
         .order('created_at', { ascending: false })
 
       if (error) throw error
-      
+
       const formattedData = data?.map((item) => ({
         ...item,
         perhiasan: item.stok_perhiasan.perhiasan,
         jenis: item.stok_perhiasan.jenis,
         berat: item.stok_perhiasan.berat
       })) || []
-      
+
       setSales(formattedData)
       setFilteredSales(formattedData)
     } catch (error) {
@@ -74,7 +74,7 @@ export default function SalesPage() {
     try {
       // Find the sale to get stok_seri
       const sale = sales.find(s => s.no === no)
-      
+
       // Update stock status back to available
       if (sale?.stok_seri) {
         const { error: stockError } = await supabase
@@ -107,7 +107,7 @@ export default function SalesPage() {
     )
   }
 
-  const totalRevenue = filteredSales.reduce((sum: number, item: SaleWithStock) => sum + Number(item.harga_jual) + Number(item.biaya || 0), 0)
+  const totalRevenue = filteredSales.reduce((sum: number, item: SaleWithStock) => sum + Number(item.harga_jual), 0)
 
   return (
     <div className="space-y-6">
@@ -159,9 +159,8 @@ export default function SalesPage() {
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-900 uppercase">Pembeli</th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-900 uppercase">Seri Stok</th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-900 uppercase">Item</th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-900 uppercase">Harga Jual</th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-900 uppercase">Biaya</th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-900 uppercase">Total</th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-900 uppercase">Harga Jual</th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-900 uppercase">Aksi</th>
               </tr>
             </thead>
@@ -188,32 +187,29 @@ export default function SalesPage() {
                       <div className="text-xs text-gray-500">{formatWeight(Number(item.berat))}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatCurrency(Number(item.harga_jual))}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {item.biaya ? formatCurrency(Number(item.biaya)) : '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-amber-600">
-                      {formatCurrency(Number(item.harga_jual) + Number(item.biaya || 0))}
+                      {formatCurrency(Number(item.harga_jual))}
                     </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex gap-2 justify-end">
-                      <Link
-                        href={`/dashboard/sales/${item.no}`}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
-                        title="Lihat Detail"
-                      >
-                        <Eye className="w-5 h-5" />
-                      </Link>
-                      <button
-                        onClick={() => handleDelete(item.no)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-                        title="Hapus"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
-                    </div>
-                  </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex gap-2 justify-end">
+                        <Link
+                          href={`/dashboard/sales/${item.no}`}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                          title="Lihat Detail"
+                        >
+                          <Eye className="w-5 h-5" />
+                        </Link>
+                        <button
+                          onClick={() => handleDelete(item.no)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                          title="Hapus"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))
               )}
