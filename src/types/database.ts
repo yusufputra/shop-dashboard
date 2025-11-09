@@ -33,6 +33,7 @@ export interface Database {
           status: string
           pembelian_seri: string | null
           keterangan: string | null
+          images: string[] | null
           created_at: string
         }
         Insert: {
@@ -46,6 +47,7 @@ export interface Database {
           status?: string
           pembelian_seri?: string | null
           keterangan?: string | null
+          images?: string[] | null
           created_at?: string
         }
         Update: {
@@ -59,6 +61,7 @@ export interface Database {
           status?: string
           pembelian_seri?: string | null
           keterangan?: string | null
+          images?: string[] | null
           created_at?: string
         }
       }
@@ -150,6 +153,44 @@ export interface Database {
           created_at?: string
         }
       }
+      penjualan_perhiasan: {
+        Row: {
+          no: string
+          tanggal: string
+          stok_seri: string
+          nama_pembeli: string
+          alamat: string
+          no_telp: string | null
+          harga_jual: number
+          biaya: number | null
+          keterangan: string | null
+          created_at: string
+        }
+        Insert: {
+          no?: string
+          tanggal?: string
+          stok_seri: string
+          nama_pembeli: string
+          alamat: string
+          no_telp?: string | null
+          harga_jual: number
+          biaya?: number | null
+          keterangan?: string | null
+          created_at?: string
+        }
+        Update: {
+          no?: string
+          tanggal?: string
+          stok_seri?: string
+          nama_pembeli?: string
+          alamat?: string
+          no_telp?: string | null
+          harga_jual?: number
+          biaya?: number | null
+          keterangan?: string | null
+          created_at?: string
+        }
+      }
     }
   }
 }
@@ -157,6 +198,7 @@ export interface Database {
 export type StokPerhiasan = Database['public']['Tables']['stok_perhiasan']['Row']
 export type PembelianPerhiasan = Database['public']['Tables']['pembelian_perhiasan']['Row']
 export type PesananPerhiasan = Database['public']['Tables']['pesanan_perhiasan']['Row']
+export type PenjualanPerhiasan = Database['public']['Tables']['penjualan_perhiasan']['Row']
 export type Login = Database['public']['Tables']['login']['Row']
 
 export interface GoldStandard {

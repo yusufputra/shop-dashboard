@@ -2,20 +2,27 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
-import { ArrowLeft, Save } from 'lucide-react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { ArrowLeft, Save, Upload, X } from 'lucide-react'
 import Link from 'next/link'
 import { generateSerialNumber } from '@/lib/utils'
+import Image from 'next/image'
 
 export default function NewInventoryPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const fromPurchase = searchParams.get('from_purchase')
   const supabase = createClient()
   const [loading, setLoading] = useState(false)
+  const [loadingPurchase, setLoadingPurchase] = useState(false)
   const [goldPrice, setGoldPrice] = useState<number | null>(null)
   const [loadingGold, setLoadingGold] = useState(false)
   const [useGoldPrice, setUseGoldPrice] = useState(true)
   const [manualGoldPrice, setManualGoldPrice] = useState('')
   const [showManualInput, setShowManualInput] = useState(false)
+  const [selectedImages, setSelectedImages] = useState<File[]>([])
+  const [imagePreviews, setImagePreviews] = useState<string[]>([])
+  const [uploadingImages, setUploadingImages] = useState(false)
   const [formData, setFormData] = useState({
     seri: generateSerialNumber('STK'),
     tanggal: new Date().toISOString().split('T')[0],
@@ -24,8 +31,45 @@ export default function NewInventoryPage() {
     model: '',
     berat: '',
     harga: '',
+    pembelian_seri: '',
     keterangan: ''
   })
+
+  useEffect(() => {
+    // Load purchase data if coming from purchase page
+    const loadPurchaseData = async () => {
+      if (!fromPurchase) return
+      
+      setLoadingPurchase(true)
+      try {
+        const { data, error } = await supabase
+          .from('pembelian_perhiasan')
+          .select('*')
+          .eq('seri', fromPurchase)
+          .single()
+
+        if (error) throw error
+        
+        if (data) {
+          setFormData(prev => ({
+            ...prev,
+            jenis: data.jenis,
+            perhiasan: data.perhiasan,
+            model: data.model,
+            berat: data.berat.toString(),
+            pembelian_seri: data.seri,
+            keterangan: data.keterangan || ''
+          }))
+        }
+      } catch (error) {
+        console.error('Error loading purchase data:', error)
+      } finally {
+        setLoadingPurchase(false)
+      }
+    }
+
+    loadPurchaseData()
+  }, [fromPurchase, supabase])
 
   useEffect(() => {
     // fetch the server-side proxy that attempts to get Antam price
@@ -50,11 +94,68 @@ export default function NewInventoryPage() {
     fetchGold()
   }, [])
 
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files) return
+
+    const newFiles = Array.from(files)
+    setSelectedImages(prev => [...prev, ...newFiles])
+
+    // Create preview URLs
+    newFiles.forEach(file => {
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setImagePreviews(prev => [...prev, reader.result as string])
+      }
+      reader.readAsDataURL(file)
+    })
+  }
+
+  const handleRemoveImage = (index: number) => {
+    setSelectedImages(prev => prev.filter((_, i) => i !== index))
+    setImagePreviews(prev => prev.filter((_, i) => i !== index))
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
 
     try {
+      // Upload images to Supabase Storage first
+      const imageUrls: string[] = []
+      
+      if (selectedImages.length > 0) {
+        setUploadingImages(true)
+        
+        for (const file of selectedImages) {
+          const fileExt = file.name.split('.').pop()
+          const fileName = `${formData.seri}_${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`
+          const filePath = `inventory/${fileName}`
+
+          const { error: uploadError } = await supabase.storage
+            .from('jewelry-images')
+            .upload(filePath, file, {
+              cacheControl: '3600',
+              upsert: false
+            })
+
+          if (uploadError) {
+            console.error('Error uploading image:', uploadError)
+            throw new Error(`Gagal upload gambar: ${uploadError.message}`)
+          }
+
+          // Get public URL
+          const { data: { publicUrl } } = supabase.storage
+            .from('jewelry-images')
+            .getPublicUrl(filePath)
+
+          imageUrls.push(publicUrl)
+        }
+        
+        setUploadingImages(false)
+      }
+
+      // Insert data with image URLs
       const { error } = await supabase
         .from('stok_perhiasan')
         .insert([{
@@ -65,7 +166,9 @@ export default function NewInventoryPage() {
           model: formData.model,
           berat: parseFloat(formData.berat),
           harga: parseFloat(formData.harga),
-          keterangan: formData.keterangan || null
+          pembelian_seri: formData.pembelian_seri || null,
+          keterangan: formData.keterangan || null,
+          images: imageUrls.length > 0 ? imageUrls : null
         }])
 
       if (error) throw error
@@ -73,9 +176,10 @@ export default function NewInventoryPage() {
       router.push('/dashboard/inventory')
     } catch (error) {
       console.error('Error adding inventory:', error)
-      alert('Gagal menambahkan data stok')
+      alert(error instanceof Error ? error.message : 'Gagal menambahkan data stok')
     } finally {
       setLoading(false)
+      setUploadingImages(false)
     }
   }
 
@@ -116,6 +220,23 @@ export default function NewInventoryPage() {
 
       {/* Form */}
       <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-md p-6 space-y-6">
+        {fromPurchase && formData.pembelian_seri && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
+            <div className="flex-shrink-0 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center mt-0.5">
+              <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-green-900">Data diambil dari pembelian</p>
+              <p className="text-sm text-green-700 mt-1">
+                Data perhiasan telah diisi otomatis dari pembelian <span className="font-semibold">{formData.pembelian_seri}</span>. 
+                Silakan lengkapi harga jual dan upload foto barang.
+              </p>
+            </div>
+          </div>
+        )}
+        
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -317,19 +438,72 @@ export default function NewInventoryPage() {
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none resize-none text-black"
             />
           </div>
+
+          {/* Image Upload Section */}
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Foto Perhiasan
+            </label>
+            
+            <div className="space-y-4">
+              {/* Upload Button */}
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-2 px-4 py-3 bg-white border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                  <Upload className="w-5 h-5 text-gray-600" />
+                  <span className="text-sm text-gray-700">Pilih Gambar</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleImageSelect}
+                    className="hidden"
+                  />
+                </label>
+                <span className="text-sm text-gray-500">
+                  {selectedImages.length > 0 ? `${selectedImages.length} gambar dipilih` : 'Bisa upload multiple gambar'}
+                </span>
+              </div>
+
+              {/* Image Previews */}
+              {imagePreviews.length > 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                  {imagePreviews.map((preview, index) => (
+                    <div key={index} className="relative group">
+                      <div className="aspect-square rounded-lg overflow-hidden border border-gray-200">
+                        <Image
+                          src={preview}
+                          alt={`Preview ${index + 1}`}
+                          width={200}
+                          height={200}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveImage(index)}
+                        className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Action Buttons */}
         <div className="flex gap-4 pt-4 border-t border-gray-200">
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || uploadingImages}
             className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-linear-to-r from-amber-500 to-yellow-500 text-white rounded-lg hover:from-amber-600 hover:to-yellow-600 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? (
+            {loading || uploadingImages ? (
               <>
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                <span>Menyimpan...</span>
+                <span>{uploadingImages ? 'Mengupload gambar...' : 'Menyimpan...'}</span>
               </>
             ) : (
               <>

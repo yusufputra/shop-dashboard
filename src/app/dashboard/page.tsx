@@ -11,6 +11,7 @@ interface Stats {
   totalPurchases: number
   totalOrders: number
   totalRevenue: number
+  totalPurchaseAmount: number
 }
 
 interface MonthlyData {
@@ -24,7 +25,8 @@ export default function DashboardPage() {
     totalInventory: 0,
     totalPurchases: 0,
     totalOrders: 0,
-    totalRevenue: 0
+    totalRevenue: 0,
+    totalPurchaseAmount: 0
   })
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([])
   const [loading, setLoading] = useState(true)
@@ -32,9 +34,10 @@ export default function DashboardPage() {
 
   const loadMonthlyData = useCallback(async () => {
     try {
-      const [ordersData, purchasesData] = await Promise.all([
-        supabase.from('pesanan_perhiasan').select('tanggal, harga'),
-        supabase.from('pembelian_perhiasan').select('tanggal, harga')
+      const [salesData, purchasesData, ordersData] = await Promise.all([
+        supabase.from('penjualan_perhiasan').select('tanggal, harga_jual, biaya'),
+        supabase.from('pembelian_perhiasan').select('tanggal, harga'),
+        supabase.from('pesanan_perhiasan').select('tanggal, harga')
       ])
 
       // Process data by month
@@ -49,7 +52,16 @@ export default function DashboardPage() {
         monthlyStats[monthKey] = { penjualan: 0, pembelian: 0 }
       }
 
-      // Aggregate orders (penjualan)
+      // Aggregate sales from penjualan table
+      salesData.data?.forEach(sale => {
+        const date = new Date(sale.tanggal)
+        const monthKey = monthNames[date.getMonth()]
+        if (monthlyStats[monthKey]) {
+          monthlyStats[monthKey].penjualan += Number(sale.harga_jual) + Number(sale.biaya || 0)
+        }
+      })
+
+      // Add custom orders to penjualan
       ordersData.data?.forEach(order => {
         const date = new Date(order.tanggal)
         const monthKey = monthNames[date.getMonth()]
@@ -58,7 +70,7 @@ export default function DashboardPage() {
         }
       })
 
-      // Aggregate purchases (pembelian)
+      // Aggregate purchases (pembelian - buying gold from customers)
       purchasesData.data?.forEach(purchase => {
         const date = new Date(purchase.tanggal)
         const monthKey = monthNames[date.getMonth()]
@@ -82,19 +94,26 @@ export default function DashboardPage() {
 
   const loadStatsAndData = useCallback(async () => {
     try {
-      const [inventory, purchases, orders] = await Promise.all([
+      const [inventory, purchases, orders, sales] = await Promise.all([
         supabase.from('stok_perhiasan').select('*', { count: 'exact' }),
-        supabase.from('pembelian_perhiasan').select('*', { count: 'exact' }),
-        supabase.from('pesanan_perhiasan').select('*')
+        supabase.from('pembelian_perhiasan').select('harga'),
+        supabase.from('pesanan_perhiasan').select('*'),
+        supabase.from('penjualan_perhiasan').select('harga_jual, biaya')
       ])
 
-      const totalRevenue = orders.data?.reduce((sum, order) => sum + Number(order.harga), 0) || 0
+      // Calculate total revenue from sales + custom orders
+      const salesRevenue = sales.data?.reduce((sum, sale) => sum + Number(sale.harga_jual) + Number(sale.biaya || 0), 0) || 0
+      const totalRevenue = salesRevenue
+
+      // Calculate total purchase amount
+      const totalPurchaseAmount = purchases.data?.reduce((sum, purchase) => sum + Number(purchase.harga), 0) || 0
 
       setStats({
         totalInventory: inventory.count || 0,
-        totalPurchases: purchases.count || 0,
+        totalPurchases: purchases.data?.length || 0,
         totalOrders: orders.data?.length || 0,
-        totalRevenue
+        totalRevenue,
+        totalPurchaseAmount
       })
 
       // Load monthly data
@@ -120,15 +139,15 @@ export default function DashboardPage() {
       textColor: 'text-blue-600'
     },
     {
-      name: 'Pembelian',
-      value: stats.totalPurchases,
+      name: 'Total Pembelian',
+      value: formatCurrency(stats.totalPurchaseAmount),
       icon: ShoppingCart,
       color: 'from-green-500 to-green-600',
       bgColor: 'bg-green-50',
       textColor: 'text-green-600'
     },
     {
-      name: 'Pesanan',
+      name: 'Pesanan Custom',
       value: stats.totalOrders,
       icon: ClipboardList,
       color: 'from-purple-500 to-purple-600',
@@ -181,7 +200,8 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Bar Chart */}
         <div className="bg-white rounded-xl shadow-md p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Penjualan & Pembelian Bulanan</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-1">Penjualan & Pembelian Bulanan</h3>
+          <p className="text-xs text-gray-600 mb-4">Penjualan = jual ke pelanggan, Pembelian = beli dari pelanggan</p>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={monthlyData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -265,20 +285,20 @@ export default function DashboardPage() {
       <div className="bg-white rounded-xl shadow-md p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Aksi Cepat</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <a href="/dashboard/inventory" className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-amber-500 hover:bg-amber-50 transition-all text-center">
+          <a href="/dashboard/sales" className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-amber-500 hover:bg-amber-50 transition-all text-center">
             <Package className="w-8 h-8 text-amber-600 mx-auto mb-2" />
-            <p className="font-medium text-gray-900">Tambah Stok</p>
-            <p className="text-sm text-gray-500">Kelola inventori</p>
+            <p className="font-medium text-gray-900">Jual ke Pelanggan</p>
+            <p className="text-sm text-gray-500">Penjualan dari stok</p>
           </a>
           <a href="/dashboard/purchases" className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-500 hover:bg-green-50 transition-all text-center">
             <ShoppingCart className="w-8 h-8 text-green-600 mx-auto mb-2" />
-            <p className="font-medium text-gray-900">Pembelian Baru</p>
-            <p className="text-sm text-gray-500">Beli perhiasan</p>
+            <p className="font-medium text-gray-900">Beli dari Pelanggan</p>
+            <p className="text-sm text-gray-500">Pembelian emas</p>
           </a>
           <a href="/dashboard/orders" className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-purple-500 hover:bg-purple-50 transition-all text-center">
             <ClipboardList className="w-8 h-8 text-purple-600 mx-auto mb-2" />
-            <p className="font-medium text-gray-900">Pesanan Baru</p>
-            <p className="text-sm text-gray-500">Kelola pesanan</p>
+            <p className="font-medium text-gray-900">Pesanan Custom</p>
+            <p className="text-sm text-gray-500">Terima pesanan custom</p>
           </a>
         </div>
       </div>

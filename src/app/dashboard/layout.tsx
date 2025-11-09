@@ -13,13 +13,15 @@ import {
   LogOut,
   Gem,
   Menu,
-  X
+  X,
+  TrendingUp
 } from 'lucide-react'
 import { useState } from 'react'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Stok Perhiasan', href: '/dashboard/inventory', icon: Package },
+  { name: 'Penjualan', href: '/dashboard/sales', icon: TrendingUp },
   { name: 'Pembelian', href: '/dashboard/purchases', icon: ShoppingCart },
   { name: 'Pesanan', href: '/dashboard/orders', icon: ClipboardList },
   { name: 'Kalkulator Emas', href: '/dashboard/calculator', icon: Calculator },
