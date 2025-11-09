@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ArrowLeft, Save, Upload, X } from 'lucide-react'
@@ -8,13 +8,12 @@ import Link from 'next/link'
 import { generateSerialNumber } from '@/lib/utils'
 import Image from 'next/image'
 
-export default function NewInventoryPage() {
+function NewInventoryForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const fromPurchase = searchParams.get('from_purchase')
   const supabase = createClient()
   const [loading, setLoading] = useState(false)
-  const [loadingPurchase, setLoadingPurchase] = useState(false)
   const [goldPrice, setGoldPrice] = useState<number | null>(null)
   const [loadingGold, setLoadingGold] = useState(false)
   const [useGoldPrice, setUseGoldPrice] = useState(true)
@@ -40,7 +39,6 @@ export default function NewInventoryPage() {
     const loadPurchaseData = async () => {
       if (!fromPurchase) return
       
-      setLoadingPurchase(true)
       try {
         const { data, error } = await supabase
           .from('pembelian_perhiasan')
@@ -63,8 +61,6 @@ export default function NewInventoryPage() {
         }
       } catch (error) {
         console.error('Error loading purchase data:', error)
-      } finally {
-        setLoadingPurchase(false)
       }
     }
 
@@ -521,5 +517,17 @@ export default function NewInventoryPage() {
         </div>
       </form>
     </div>
+  )
+}
+
+export default function NewInventoryPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    }>
+      <NewInventoryForm />
+    </Suspense>
   )
 }
