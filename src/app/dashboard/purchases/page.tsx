@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Plus, Search, Edit, Trash2 } from 'lucide-react'
+import { Plus, Search, Edit, Trash2, Eye } from 'lucide-react'
 import { formatCurrency, formatWeight } from '@/lib/utils'
 import { PembelianPerhiasan } from '@/types/database'
 import Link from 'next/link'
@@ -153,14 +153,23 @@ export default function PurchasesPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <div className="flex items-center gap-2">
                         <Link
+                          href={`/dashboard/purchases/${item.seri}`}
+                          className="p-2 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Lihat Detail"
+                        >
+                          <Eye className="w-4 h-4 text-blue-600" />
+                        </Link>
+                        <Link
                           href={`/dashboard/purchases/${item.seri}/edit`}
                           className="p-2 hover:bg-green-50 rounded-lg transition-colors"
+                          title="Edit"
                         >
                           <Edit className="w-4 h-4 text-green-600" />
                         </Link>
                         <button
                           onClick={() => handleDelete(item.seri)}
                           className="p-2 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Hapus"
                         >
                           <Trash2 className="w-4 h-4 text-red-600" />
                         </button>

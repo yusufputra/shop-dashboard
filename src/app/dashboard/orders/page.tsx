@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Plus, Search, Edit, Trash2, Phone } from 'lucide-react'
+import { Plus, Search, Edit, Trash2, Phone, Eye } from 'lucide-react'
 import { formatCurrency, formatWeight } from '@/lib/utils'
 import { PesananPerhiasan } from '@/types/database'
 import Link from 'next/link'
@@ -170,6 +170,12 @@ export default function OrdersPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <div className="flex items-center gap-2">
+                        <Link
+                          href={`/dashboard/orders/${item.no}`}
+                          className="p-2 hover:bg-blue-50 rounded-lg transition-colors"
+                        >
+                          <Eye className="w-4 h-4 text-blue-600" />
+                        </Link>
                         <Link
                           href={`/dashboard/orders/${item.no}/edit`}
                           className="p-2 hover:bg-purple-50 rounded-lg transition-colors"
