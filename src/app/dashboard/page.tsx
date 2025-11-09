@@ -2,9 +2,10 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { TrendingUp, Package, ShoppingCart, ClipboardList, DollarSign } from 'lucide-react'
+import { TrendingUp, Package, ShoppingCart, ClipboardList, DollarSign, Download, Calendar } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts'
+import * as XLSX from 'xlsx'
 
 interface Stats {
   totalInventory: number
@@ -20,6 +21,15 @@ interface MonthlyData {
   pembelian: number
 }
 
+type FilterType = 'all' | 'date' | 'month' | 'year'
+
+interface RecapData {
+  tanggal: string
+  tipe: string
+  deskripsi: string
+  jumlah: number
+}
+
 export default function DashboardPage() {
   const [stats, setStats] = useState<Stats>({
     totalInventory: 0,
@@ -30,6 +40,11 @@ export default function DashboardPage() {
   })
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([])
   const [loading, setLoading] = useState(true)
+  const [filterType, setFilterType] = useState<FilterType>('all')
+  const [selectedDate, setSelectedDate] = useState('')
+  const [selectedMonth, setSelectedMonth] = useState('')
+  const [selectedYear, setSelectedYear] = useState('')
+  const [recapData, setRecapData] = useState<RecapData[]>([])
   const supabase = createClient()
 
   const loadMonthlyData = useCallback(async () => {
@@ -94,11 +109,26 @@ export default function DashboardPage() {
 
   const loadStatsAndData = useCallback(async () => {
     try {
+      // Build date filter
+      let dateFilter = {}
+      if (filterType === 'date' && selectedDate) {
+        dateFilter = { tanggal: selectedDate }
+      } else if (filterType === 'month' && selectedMonth) {
+        const [year, month] = selectedMonth.split('-')
+        const startDate = `${year}-${month}-01`
+        const endDate = `${year}-${month}-${new Date(parseInt(year), parseInt(month), 0).getDate()}`
+        dateFilter = { tanggal: { gte: startDate, lte: endDate } }
+      } else if (filterType === 'year' && selectedYear) {
+        const startDate = `${selectedYear}-01-01`
+        const endDate = `${selectedYear}-12-31`
+        dateFilter = { tanggal: { gte: startDate, lte: endDate } }
+      }
+
       const [inventory, purchases, orders, sales] = await Promise.all([
         supabase.from('stok_perhiasan').select('*', { count: 'exact' }),
-        supabase.from('pembelian_perhiasan').select('harga'),
-        supabase.from('pesanan_perhiasan').select('*'),
-        supabase.from('penjualan_perhiasan').select('harga_jual, biaya')
+        supabase.from('pembelian_perhiasan').select('*').match(dateFilter),
+        supabase.from('pesanan_perhiasan').select('*').match(dateFilter),
+        supabase.from('penjualan_perhiasan').select('*').match(dateFilter)
       ])
 
       // Calculate total revenue from sales + custom orders
@@ -116,6 +146,43 @@ export default function DashboardPage() {
         totalPurchaseAmount
       })
 
+      // Prepare recap data
+      const recap: RecapData[] = []
+      
+      // Add sales
+      sales.data?.forEach(sale => {
+        recap.push({
+          tanggal: sale.tanggal,
+          tipe: 'Penjualan',
+          deskripsi: `${sale.nama_pembeli} - Seri: ${sale.stok_seri}`,
+          jumlah: Number(sale.harga_jual) + Number(sale.biaya || 0)
+        })
+      })
+
+      // Add purchases
+      purchases.data?.forEach(purchase => {
+        recap.push({
+          tanggal: purchase.tanggal,
+          tipe: 'Pembelian',
+          deskripsi: `${purchase.nama} - ${purchase.perhiasan}`,
+          jumlah: Number(purchase.harga)
+        })
+      })
+
+      // Add orders
+      orders.data?.forEach(order => {
+        recap.push({
+          tanggal: order.tanggal,
+          tipe: 'Pesanan',
+          deskripsi: `${order.nama} - ${order.jenis_perhiasan}`,
+          jumlah: Number(order.harga)
+        })
+      })
+
+      // Sort by date
+      recap.sort((a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime())
+      setRecapData(recap)
+
       // Load monthly data
       await loadMonthlyData()
     } catch (error) {
@@ -123,11 +190,61 @@ export default function DashboardPage() {
     } finally {
       setLoading(false)
     }
-  }, [supabase, loadMonthlyData])
+  }, [supabase, loadMonthlyData, filterType, selectedDate, selectedMonth, selectedYear])
 
   useEffect(() => {
     loadStatsAndData()
   }, [loadStatsAndData])
+
+  const exportToExcel = () => {
+    // Prepare data for export
+    const exportData = recapData.map(item => ({
+      'Tanggal': new Date(item.tanggal).toLocaleDateString('id-ID'),
+      'Tipe': item.tipe,
+      'Deskripsi': item.deskripsi,
+      'Jumlah': item.jumlah
+    }))
+
+    // Add summary
+    const summary = [
+      {},
+      { 'Tanggal': 'RINGKASAN' },
+      { 'Tanggal': 'Total Pendapatan', 'Jumlah': stats.totalRevenue },
+      { 'Tanggal': 'Total Pembelian', 'Jumlah': stats.totalPurchaseAmount },
+      { 'Tanggal': 'Total Pesanan', 'Jumlah': stats.totalOrders },
+      { 'Tanggal': 'Total Stok', 'Jumlah': stats.totalInventory }
+    ]
+
+    const fullData = [...exportData, ...summary]
+
+    // Create worksheet
+    const ws = XLSX.utils.json_to_sheet(fullData)
+    
+    // Create workbook
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Rekap Data')
+
+    // Generate filename with filter info
+    let filename = 'rekap-toko-emas'
+    if (filterType === 'date' && selectedDate) {
+      filename += `-${selectedDate}`
+    } else if (filterType === 'month' && selectedMonth) {
+      filename += `-${selectedMonth}`
+    } else if (filterType === 'year' && selectedYear) {
+      filename += `-${selectedYear}`
+    }
+    filename += '.xlsx'
+
+    // Save file
+    XLSX.writeFile(wb, filename)
+  }
+
+  const handleFilterChange = (type: FilterType) => {
+    setFilterType(type)
+    setSelectedDate('')
+    setSelectedMonth('')
+    setSelectedYear('')
+  }
 
   const statCards = [
     {
@@ -178,6 +295,79 @@ export default function DashboardPage() {
       <div className="bg-gradient-to-r from-amber-500 to-yellow-500 rounded-xl p-6 text-white shadow-lg">
         <h1 className="text-2xl font-bold mb-2">Selamat Datang di Dashboard Toko Emas</h1>
         <p className="text-amber-50">Sistem Informasi Penjualan Perhiasan</p>
+      </div>
+
+      {/* Filter Section */}
+      <div className="bg-white rounded-xl shadow-md p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Calendar className="w-5 h-5 text-gray-600" />
+          <h3 className="text-lg font-semibold text-gray-900">Filter Data</h3>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Tipe Filter</label>
+            <select
+              value={filterType}
+              onChange={(e) => handleFilterChange(e.target.value as FilterType)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black"
+            >
+              <option value="all">Semua Data</option>
+              <option value="date">Per Tanggal</option>
+              <option value="month">Per Bulan</option>
+              <option value="year">Per Tahun</option>
+            </select>
+          </div>
+
+          {filterType === 'date' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Pilih Tanggal</label>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black"
+              />
+            </div>
+          )}
+
+          {filterType === 'month' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Pilih Bulan</label>
+              <input
+                type="month"
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black"
+              />
+            </div>
+          )}
+
+          {filterType === 'year' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Pilih Tahun</label>
+              <input
+                type="number"
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(e.target.value)}
+                placeholder="2024"
+                min="2000"
+                max="2100"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black"
+              />
+            </div>
+          )}
+
+          <div className="flex items-end">
+            <button
+              onClick={exportToExcel}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-all shadow-md"
+            >
+              <Download className="w-5 h-5" />
+              <span>Export Excel</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -302,6 +492,47 @@ export default function DashboardPage() {
           </a>
         </div>
       </div>
+
+      {/* Recap Table */}
+      {recapData.length > 0 && (
+        <div className="bg-white rounded-xl shadow-md p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Rekap Transaksi</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-900 uppercase">Tanggal</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-900 uppercase">Tipe</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-900 uppercase">Deskripsi</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-900 uppercase">Jumlah</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {recapData.map((item, index) => (
+                  <tr key={index} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {new Date(item.tanggal).toLocaleDateString('id-ID')}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        item.tipe === 'Penjualan' ? 'bg-amber-100 text-amber-800' :
+                        item.tipe === 'Pembelian' ? 'bg-green-100 text-green-800' :
+                        'bg-purple-100 text-purple-800'
+                      }`}>
+                        {item.tipe}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-900">{item.deskripsi}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-medium text-gray-900">
+                      {formatCurrency(item.jumlah)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
