@@ -1,7 +1,9 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { useDashboardAuth } from '@/app/dashboard/dashboard-auth-context'
 import { TrendingUp, Package, ShoppingCart, ClipboardList, DollarSign, Download, Calendar } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts'
@@ -31,6 +33,7 @@ interface RecapData {
 }
 
 export default function DashboardPage() {
+  const { can, ready: authReady } = useDashboardAuth()
   const [stats, setStats] = useState<Stats>({
     totalInventory: 0,
     totalPurchases: 0,
@@ -471,27 +474,47 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className="bg-white rounded-xl shadow-md p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Aksi Cepat</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <a href="/dashboard/sales" className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-amber-500 hover:bg-amber-50 transition-all text-center">
-            <Package className="w-8 h-8 text-amber-600 mx-auto mb-2" />
-            <p className="font-medium text-gray-900">Jual ke Pelanggan</p>
-            <p className="text-sm text-gray-500">Penjualan dari stok</p>
-          </a>
-          <a href="/dashboard/purchases" className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-500 hover:bg-green-50 transition-all text-center">
-            <ShoppingCart className="w-8 h-8 text-green-600 mx-auto mb-2" />
-            <p className="font-medium text-gray-900">Beli dari Pelanggan</p>
-            <p className="text-sm text-gray-500">Pembelian emas</p>
-          </a>
-          <a href="/dashboard/orders" className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-purple-500 hover:bg-purple-50 transition-all text-center">
-            <ClipboardList className="w-8 h-8 text-purple-600 mx-auto mb-2" />
-            <p className="font-medium text-gray-900">Pesanan Custom</p>
-            <p className="text-sm text-gray-500">Terima pesanan custom</p>
-          </a>
-        </div>
-      </div>
+      {/* Quick Actions — hanya menu yang boleh dibaca (RBAC) */}
+      {authReady &&
+        (can('sales', 'read') ||
+          can('purchases', 'read') ||
+          can('orders', 'read')) && (
+          <div className="bg-white rounded-xl shadow-md p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Aksi Cepat</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {can('sales', 'read') && (
+                <Link
+                  href="/dashboard/sales"
+                  className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-amber-500 hover:bg-amber-50 transition-all text-center"
+                >
+                  <Package className="w-8 h-8 text-amber-600 mx-auto mb-2" />
+                  <p className="font-medium text-gray-900">Jual ke Pelanggan</p>
+                  <p className="text-sm text-gray-500">Penjualan dari stok</p>
+                </Link>
+              )}
+              {can('purchases', 'read') && (
+                <Link
+                  href="/dashboard/purchases"
+                  className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-500 hover:bg-green-50 transition-all text-center"
+                >
+                  <ShoppingCart className="w-8 h-8 text-green-600 mx-auto mb-2" />
+                  <p className="font-medium text-gray-900">Beli dari Pelanggan</p>
+                  <p className="text-sm text-gray-500">Pembelian emas</p>
+                </Link>
+              )}
+              {can('orders', 'read') && (
+                <Link
+                  href="/dashboard/orders"
+                  className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-purple-500 hover:bg-purple-50 transition-all text-center"
+                >
+                  <ClipboardList className="w-8 h-8 text-purple-600 mx-auto mb-2" />
+                  <p className="font-medium text-gray-900">Pesanan Custom</p>
+                  <p className="text-sm text-gray-500">Terima pesanan custom</p>
+                </Link>
+              )}
+            </div>
+          </div>
+        )}
 
       {/* Recap Table */}
       {recapData.length > 0 && (
