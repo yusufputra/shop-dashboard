@@ -5,12 +5,14 @@ export interface Database {
         Row: {
           user_id: string
           nama: string
+          email: string | null
           password: string
           created_at: string
         }
         Insert: {
           user_id?: string
           nama: string
+          email?: string | null
           password: string
           created_at?: string
         }
@@ -18,6 +20,7 @@ export interface Database {
           user_id?: string
           nama?: string
           password?: string
+          email?: string | null
           created_at?: string
         }
       }

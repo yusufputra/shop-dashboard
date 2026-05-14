@@ -1,13 +1,15 @@
-import { createClient } from '@/lib/supabase/server'
+import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
+import { SESSION_COOKIE_NAME } from '@/lib/auth/constants'
+import { verifySession } from '@/lib/auth/jwt'
 
 export default async function Home() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const cookieStore = await cookies()
+  const token = cookieStore.get(SESSION_COOKIE_NAME)?.value
+  const session = token ? await verifySession(token) : null
 
-  if (user) {
+  if (session) {
     redirect('/dashboard')
-  } else {
-    redirect('/login')
   }
+  redirect('/login')
 }

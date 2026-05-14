@@ -2,9 +2,14 @@
 CREATE TABLE IF NOT EXISTS login (
   user_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   nama VARCHAR(255) NOT NULL,
+  email VARCHAR(255),
   password VARCHAR(255) NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS login_email_unique
+  ON login (email)
+  WHERE email IS NOT NULL AND email <> '';
 
 -- Create stok_perhiasan table
 CREATE TABLE IF NOT EXISTS stok_perhiasan (
