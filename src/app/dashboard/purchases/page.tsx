@@ -6,8 +6,10 @@ import { Plus, Search, Edit, Trash2, Eye } from 'lucide-react'
 import { formatCurrency, formatWeight } from '@/lib/utils'
 import { PembelianPerhiasan } from '@/types/database'
 import Link from 'next/link'
+import { useDashboardAuth } from '@/app/dashboard/dashboard-auth-context'
 
 export default function PurchasesPage() {
+  const { can } = useDashboardAuth()
   const [purchases, setPurchases] = useState<PembelianPerhiasan[]>([])
   const [filteredPurchases, setFilteredPurchases] = useState<PembelianPerhiasan[]>([])
   const [loading, setLoading] = useState(true)
@@ -77,13 +79,15 @@ export default function PurchasesPage() {
           <h1 className="text-2xl font-bold text-gray-900">Pembelian Perhiasan</h1>
           <p className="text-gray-600">Kelola data pembelian dari pelanggan</p>
         </div>
-        <Link
-          href="/dashboard/purchases/new"
-          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition-all shadow-md hover:shadow-lg"
-        >
-          <Plus className="w-5 h-5" />
-          <span>Tambah Pembelian</span>
-        </Link>
+        {can('purchases', 'create') && (
+          <Link
+            href="/dashboard/purchases/new"
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition-all shadow-md hover:shadow-lg"
+          >
+            <Plus className="w-5 h-5" />
+            <span>Tambah Pembelian</span>
+          </Link>
+        )}
       </div>
 
       <div className="bg-white rounded-xl shadow-md p-4">
@@ -159,20 +163,24 @@ export default function PurchasesPage() {
                         >
                           <Eye className="w-4 h-4 text-blue-600" />
                         </Link>
-                        <Link
-                          href={`/dashboard/purchases/${item.seri}/edit`}
-                          className="p-2 hover:bg-green-50 rounded-lg transition-colors"
-                          title="Edit"
-                        >
-                          <Edit className="w-4 h-4 text-green-600" />
-                        </Link>
-                        <button
-                          onClick={() => handleDelete(item.seri)}
-                          className="p-2 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Hapus"
-                        >
-                          <Trash2 className="w-4 h-4 text-red-600" />
-                        </button>
+                        {can('purchases', 'update') && (
+                          <Link
+                            href={`/dashboard/purchases/${item.seri}/edit`}
+                            className="p-2 hover:bg-green-50 rounded-lg transition-colors"
+                            title="Edit"
+                          >
+                            <Edit className="w-4 h-4 text-green-600" />
+                          </Link>
+                        )}
+                        {can('purchases', 'delete') && (
+                          <button
+                            onClick={() => handleDelete(item.seri)}
+                            className="p-2 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Hapus"
+                          >
+                            <Trash2 className="w-4 h-4 text-red-600" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

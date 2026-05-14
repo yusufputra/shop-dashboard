@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Save } from 'lucide-react'
 import Link from 'next/link'
+import { useRoutePermissionGuard } from '@/app/dashboard/dashboard-auth-context'
 
 type SaleEdit = {
   no: string
@@ -19,6 +20,7 @@ type SaleEdit = {
 }
 
 export default function EditSalePage({ params }: { params: Promise<{ id: string }> }) {
+  useRoutePermissionGuard('sales', 'update')
   const resolvedParams = use(params)
   const router = useRouter()
   const supabase = createClient()

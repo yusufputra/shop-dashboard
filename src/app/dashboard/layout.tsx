@@ -3,37 +3,53 @@
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { 
-  LayoutDashboard, 
-  Package, 
-  ShoppingCart, 
+import {
+  LayoutDashboard,
+  Package,
+  ShoppingCart,
   ClipboardList,
   Calculator,
   LogOut,
   Gem,
   Menu,
   X,
-  TrendingUp
+  TrendingUp,
+  Users,
+  UsersRound,
+  type LucideIcon,
 } from 'lucide-react'
 import { useState } from 'react'
+import type { MenuKey } from '@/lib/auth/permissions'
+import {
+  DashboardAuthProvider,
+  useDashboardAuth,
+} from '@/app/dashboard/dashboard-auth-context'
 
-const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Stok Perhiasan', href: '/dashboard/inventory', icon: Package },
-  { name: 'Penjualan', href: '/dashboard/sales', icon: TrendingUp },
-  { name: 'Pembelian', href: '/dashboard/purchases', icon: ShoppingCart },
-  { name: 'Pesanan', href: '/dashboard/orders', icon: ClipboardList },
-  { name: 'Kalkulator Emas', href: '/dashboard/calculator', icon: Calculator },
+const navigation: {
+  name: string
+  href: string
+  icon: LucideIcon
+  menuKey: MenuKey
+}[] = [
+  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, menuKey: 'dashboard' },
+  { name: 'Stok Perhiasan', href: '/dashboard/inventory', icon: Package, menuKey: 'inventory' },
+  { name: 'Penjualan', href: '/dashboard/sales', icon: TrendingUp, menuKey: 'sales' },
+  { name: 'Pembelian', href: '/dashboard/purchases', icon: ShoppingCart, menuKey: 'purchases' },
+  { name: 'Pesanan', href: '/dashboard/orders', icon: ClipboardList, menuKey: 'orders' },
+  { name: 'Kalkulator Emas', href: '/dashboard/calculator', icon: Calculator, menuKey: 'calculator' },
+  { name: 'Pengguna', href: '/dashboard/users', icon: Users, menuKey: 'users' },
+  { name: 'Grup pengguna', href: '/dashboard/user-groups', icon: UsersRound, menuKey: 'user_groups' },
 ]
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+function DashboardShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
+  const { ready, session, can } = useDashboardAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  const visibleNav = navigation.filter((item) =>
+    ready ? can(item.menuKey, 'read') : false
+  )
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' })
@@ -41,45 +57,54 @@ export default function DashboardLayout({
     router.refresh()
   }
 
+  const title =
+    navigation.find((item) => item.href === pathname)?.name || 'Dashboard'
+
+  const initial =
+    session?.nama?.trim()?.charAt(0)?.toUpperCase() ||
+    session?.email?.trim()?.charAt(0)?.toUpperCase() ||
+    '·'
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-gray-900 bg-opacity-50 z-40 lg:hidden"
+        <div
+          className="fixed inset-0 z-40 bg-gray-900 bg-opacity-50 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      {/* Sidebar */}
-      <aside className={`
-        fixed top-0 left-0 z-50 h-full w-64 bg-gradient-to-b from-amber-600 to-yellow-600 shadow-xl transform transition-transform duration-300 ease-in-out
+      <aside
+        className={`
+        fixed top-0 left-0 z-50 h-full w-64 transform bg-gradient-to-b from-amber-600 to-yellow-600 shadow-xl transition-transform duration-300 ease-in-out
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
         lg:translate-x-0
-      `}>
-        <div className="flex flex-col h-full">
-          {/* Logo */}
-          <div className="flex items-center justify-between p-6 border-b border-amber-500">
+      `}
+      >
+        <div className="flex h-full flex-col">
+          <div className="flex items-center justify-between border-b border-amber-500 p-6">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center">
-                <Gem className="w-6 h-6 text-amber-600" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white">
+                <Gem className="h-6 w-6 text-amber-600" />
               </div>
               <div>
-                <h1 className="text-white font-bold text-lg">Toko Emas</h1>
-                <p className="text-amber-100 text-xs">Dashboard</p>
+                <h1 className="text-lg font-bold text-white">Toko Emas</h1>
+                <p className="text-xs text-amber-100">Dashboard</p>
               </div>
             </div>
             <button
               onClick={() => setSidebarOpen(false)}
-              className="lg:hidden text-white hover:bg-amber-700 p-2 rounded-lg"
+              className="rounded-lg p-2 text-white hover:bg-amber-700 lg:hidden"
             >
-              <X className="w-5 h-5" />
+              <X className="h-5 w-5" />
             </button>
           </div>
 
-          {/* Navigation */}
-          <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
-            {navigation.map((item) => {
+          <nav className="flex-1 space-y-2 overflow-y-auto px-4 py-6">
+            {!ready && (
+              <p className="px-4 text-sm text-amber-100/90">Memuat menu…</p>
+            )}
+            {visibleNav.map((item) => {
               const isActive = pathname === item.href
               return (
                 <Link
@@ -87,66 +112,79 @@ export default function DashboardLayout({
                   href={item.href}
                   onClick={() => setSidebarOpen(false)}
                   className={`
-                    flex items-center gap-3 px-4 py-3 rounded-lg transition-all
-                    ${isActive 
-                      ? 'bg-white text-amber-600 shadow-md' 
-                      : 'text-white hover:bg-amber-700'
+                    flex items-center gap-3 rounded-lg px-4 py-3 transition-all
+                    ${
+                      isActive
+                        ? 'bg-white text-amber-600 shadow-md'
+                        : 'text-white hover:bg-amber-700'
                     }
                   `}
                 >
-                  <item.icon className="w-5 h-5" />
+                  <item.icon className="h-5 w-5" />
                   <span className="font-medium">{item.name}</span>
                 </Link>
               )
             })}
           </nav>
 
-          {/* Logout Button */}
-          <div className="p-4 border-t border-amber-500">
+          <div className="border-t border-amber-500 p-4">
             <button
               onClick={handleLogout}
-              className="flex items-center gap-3 w-full px-4 py-3 text-white hover:bg-amber-700 rounded-lg transition-all"
+              className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-white transition-all hover:bg-amber-700"
             >
-              <LogOut className="w-5 h-5" />
+              <LogOut className="h-5 w-5" />
               <span className="font-medium">Keluar</span>
             </button>
           </div>
         </div>
       </aside>
 
-      {/* Main Content */}
       <div className="lg:pl-64">
-        {/* Top Bar */}
-        <header className="sticky top-0 z-30 bg-white border-b border-gray-200 shadow-sm">
+        <header className="sticky top-0 z-30 border-b border-gray-200 bg-white shadow-sm">
           <div className="flex items-center justify-between px-4 py-4 lg:px-8">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="lg:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="rounded-lg p-2 transition-colors hover:bg-gray-100 lg:hidden"
             >
-              <Menu className="w-6 h-6 text-gray-600" />
+              <Menu className="h-6 w-6 text-gray-600" />
             </button>
-            
-            <h2 className="text-xl font-semibold text-gray-800">
-              {navigation.find(item => item.href === pathname)?.name || 'Dashboard'}
-            </h2>
+
+            <h2 className="text-xl font-semibold text-gray-800">{title}</h2>
 
             <div className="flex items-center gap-3">
-              <div className="hidden sm:block text-right">
-                <p className="text-sm font-medium text-gray-900">Admin</p>
-                <p className="text-xs text-gray-500">Toko Emas</p>
+              <div className="hidden text-right sm:block">
+                <p className="text-sm font-medium text-gray-900">
+                  {session?.nama || 'Pengguna'}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {session?.isSuperuser && !session?.groupNames?.length
+                    ? 'Superuser'
+                    : session?.groupNames?.length
+                      ? session.groupNames.join(', ')
+                      : '—'}
+                </p>
               </div>
-              <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-yellow-500 rounded-full flex items-center justify-center text-white font-semibold shadow-md">
-                A
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-yellow-500 text-sm font-semibold text-white shadow-md">
+                {initial}
               </div>
             </div>
           </div>
         </header>
 
-        {/* Page Content */}
-        <main className="p-4 lg:p-8">
-          {children}
-        </main>
+        <main className="p-4 lg:p-8">{children}</main>
       </div>
     </div>
+  )
+}
+
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <DashboardAuthProvider>
+      <DashboardShell>{children}</DashboardShell>
+    </DashboardAuthProvider>
   )
 }

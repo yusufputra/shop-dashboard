@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 import { timingSafeEqual } from 'crypto'
 import { NextResponse } from 'next/server'
 import { SESSION_COOKIE_NAME, SESSION_MAX_AGE_SEC } from '@/lib/auth/constants'
+import { loadAuthForLoginRow } from '@/lib/auth/load-session'
 import { signSession } from '@/lib/auth/jwt'
 
 async function verifyStoredPassword(
@@ -50,7 +51,7 @@ export async function POST(request: Request) {
 
   const emailMatch = await supabase
     .from('login')
-    .select('user_id, nama, email, password')
+    .select('user_id, nama, email, password, group_id, is_superuser')
     .eq('email', identifier)
     .maybeSingle()
 
@@ -58,7 +59,7 @@ export async function POST(request: Request) {
   if (!row) {
     const namaMatch = await supabase
       .from('login')
-      .select('user_id, nama, email, password')
+      .select('user_id, nama, email, password, group_id, is_superuser')
       .eq('nama', identifier)
       .maybeSingle()
     row = namaMatch.data
@@ -71,10 +72,17 @@ export async function POST(request: Request) {
     )
   }
 
+  const authFields = await loadAuthForLoginRow(supabase, {
+    user_id: row.user_id,
+    group_id: row.group_id ?? null,
+    is_superuser: row.is_superuser ?? null,
+  })
+
   const token = await signSession({
     userId: row.user_id,
     nama: row.nama,
     email: row.email ?? null,
+    ...authFields,
   })
 
   const res = NextResponse.json({ ok: true })

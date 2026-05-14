@@ -7,6 +7,8 @@ export interface Database {
           nama: string
           email: string | null
           password: string
+          group_id: string | null
+          is_superuser: boolean
           created_at: string
         }
         Insert: {
@@ -14,6 +16,8 @@ export interface Database {
           nama: string
           email?: string | null
           password: string
+          group_id?: string | null
+          is_superuser?: boolean
           created_at?: string
         }
         Update: {
@@ -21,6 +25,71 @@ export interface Database {
           nama?: string
           password?: string
           email?: string | null
+          group_id?: string | null
+          is_superuser?: boolean
+          created_at?: string
+        }
+      }
+      user_groups: {
+        Row: {
+          group_id: string
+          name: string
+          description: string | null
+          created_at: string
+        }
+        Insert: {
+          group_id?: string
+          name: string
+          description?: string | null
+          created_at?: string
+        }
+        Update: {
+          group_id?: string
+          name?: string
+          description?: string | null
+          created_at?: string
+        }
+      }
+      group_menu_permissions: {
+        Row: {
+          group_id: string
+          menu_key: string
+          can_read: boolean
+          can_create: boolean
+          can_update: boolean
+          can_delete: boolean
+        }
+        Insert: {
+          group_id: string
+          menu_key: string
+          can_read?: boolean
+          can_create?: boolean
+          can_update?: boolean
+          can_delete?: boolean
+        }
+        Update: {
+          group_id?: string
+          menu_key?: string
+          can_read?: boolean
+          can_create?: boolean
+          can_update?: boolean
+          can_delete?: boolean
+        }
+      }
+      login_user_groups: {
+        Row: {
+          user_id: string
+          group_id: string
+          created_at: string
+        }
+        Insert: {
+          user_id: string
+          group_id: string
+          created_at?: string
+        }
+        Update: {
+          user_id?: string
+          group_id?: string
           created_at?: string
         }
       }

@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Plus, Search, Eye, Trash2 } from 'lucide-react'
 import { formatCurrency, formatWeight } from '@/lib/utils'
 import Link from 'next/link'
+import { useDashboardAuth } from '@/app/dashboard/dashboard-auth-context'
 
 interface SaleWithStock {
   no: string
@@ -21,6 +22,7 @@ interface SaleWithStock {
 }
 
 export default function SalesPage() {
+  const { can } = useDashboardAuth()
   const supabase = createClient()
   const [sales, setSales] = useState<SaleWithStock[]>([])
   const [filteredSales, setFilteredSales] = useState<SaleWithStock[]>([])
@@ -116,13 +118,15 @@ export default function SalesPage() {
           <h1 className="text-2xl font-bold text-gray-900">Penjualan Perhiasan</h1>
           <p className="text-gray-600">Jual stok perhiasan ke pelanggan</p>
         </div>
-        <Link
-          href="/dashboard/sales/new"
-          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-yellow-500 text-white rounded-lg hover:from-amber-600 hover:to-yellow-600 transition-all shadow-md hover:shadow-lg"
-        >
-          <Plus className="w-5 h-5" />
-          <span>Tambah Penjualan</span>
-        </Link>
+        {can('sales', 'create') && (
+          <Link
+            href="/dashboard/sales/new"
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-yellow-500 text-white rounded-lg hover:from-amber-600 hover:to-yellow-600 transition-all shadow-md hover:shadow-lg"
+          >
+            <Plus className="w-5 h-5" />
+            <span>Tambah Penjualan</span>
+          </Link>
+        )}
       </div>
 
       <div className="bg-white rounded-xl shadow-md p-4">
@@ -201,13 +205,15 @@ export default function SalesPage() {
                         >
                           <Eye className="w-5 h-5" />
                         </Link>
-                        <button
-                          onClick={() => handleDelete(item.no)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-                          title="Hapus"
-                        >
-                          <Trash2 className="w-5 h-5" />
-                        </button>
+                        {can('sales', 'delete') && (
+                          <button
+                            onClick={() => handleDelete(item.no)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                            title="Hapus"
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

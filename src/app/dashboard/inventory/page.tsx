@@ -6,12 +6,14 @@ import { Plus, Search, Edit, Trash2, Eye, Filter } from 'lucide-react'
 import { formatCurrency, formatWeight } from '@/lib/utils'
 import { StokPerhiasan } from '@/types/database'
 import Link from 'next/link'
+import { useDashboardAuth } from '@/app/dashboard/dashboard-auth-context'
 
 interface StokWithPurchase extends StokPerhiasan {
   sale_date?: string | null  // Date when sold to customer
 }
 
 export default function InventoryPage() {
+  const { can } = useDashboardAuth()
   const [inventory, setInventory] = useState<StokWithPurchase[]>([])
   const [filteredInventory, setFilteredInventory] = useState<StokWithPurchase[]>([])
   const [loading, setLoading] = useState(true)
@@ -129,13 +131,15 @@ export default function InventoryPage() {
           <h1 className="text-2xl font-bold text-gray-900">Stok Perhiasan</h1>
           <p className="text-gray-600">Kelola data inventori perhiasan</p>
         </div>
-        <Link
-          href="/dashboard/inventory/new"
-          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-yellow-500 text-white rounded-lg hover:from-amber-600 hover:to-yellow-600 transition-all shadow-md hover:shadow-lg"
-        >
-          <Plus className="w-5 h-5" />
-          <span>Tambah Stok</span>
-        </Link>
+        {can('inventory', 'create') && (
+          <Link
+            href="/dashboard/inventory/new"
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-yellow-500 text-white rounded-lg hover:from-amber-600 hover:to-yellow-600 transition-all shadow-md hover:shadow-lg"
+          >
+            <Plus className="w-5 h-5" />
+            <span>Tambah Stok</span>
+          </Link>
+        )}
       </div>
 
       {/* Search Bar */}
@@ -364,20 +368,24 @@ export default function InventoryPage() {
                         >
                           <Eye className="w-4 h-4 text-blue-600" />
                         </Link>
-                        <Link
-                          href={`/dashboard/inventory/${item.seri}/edit`}
-                          className="p-2 hover:bg-amber-50 rounded-lg transition-colors"
-                          title="Edit"
-                        >
-                          <Edit className="w-4 h-4 text-amber-600" />
-                        </Link>
-                        <button
-                          onClick={() => handleDelete(item.seri)}
-                          className="p-2 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Hapus"
-                        >
-                          <Trash2 className="w-4 h-4 text-red-600" />
-                        </button>
+                        {can('inventory', 'update') && (
+                          <Link
+                            href={`/dashboard/inventory/${item.seri}/edit`}
+                            className="p-2 hover:bg-amber-50 rounded-lg transition-colors"
+                            title="Edit"
+                          >
+                            <Edit className="w-4 h-4 text-amber-600" />
+                          </Link>
+                        )}
+                        {can('inventory', 'delete') && (
+                          <button
+                            onClick={() => handleDelete(item.seri)}
+                            className="p-2 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Hapus"
+                          >
+                            <Trash2 className="w-4 h-4 text-red-600" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

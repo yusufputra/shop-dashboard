@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft, Edit, Trash2, Calendar, User, Phone, MapPin, Package, Tag } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
+import { useDashboardAuth } from '@/app/dashboard/dashboard-auth-context'
 
 type SaleDetail = {
   no: string
@@ -30,6 +31,7 @@ type SaleDetail = {
 
 export default function SaleDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params)
+  const { can } = useDashboardAuth()
   const router = useRouter()
   const supabase = createClient()
   const [sale, setSale] = useState<SaleDetail | null>(null)
@@ -141,21 +143,25 @@ export default function SaleDetailPage({ params }: { params: Promise<{ id: strin
           </div>
         </div>
         <div className="flex gap-3">
-          <Link
-            href={`/dashboard/sales/${sale.no}/edit`}
-            className="flex items-center gap-2 px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-all"
-          >
-            <Edit className="w-5 h-5" />
-            <span>Edit</span>
-          </Link>
-          <button
-            onClick={handleDelete}
-            disabled={deleting}
-            className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all disabled:opacity-50"
-          >
-            <Trash2 className="w-5 h-5" />
-            <span>{deleting ? 'Menghapus...' : 'Hapus'}</span>
-          </button>
+          {can('sales', 'update') && (
+            <Link
+              href={`/dashboard/sales/${sale.no}/edit`}
+              className="flex items-center gap-2 px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-all"
+            >
+              <Edit className="w-5 h-5" />
+              <span>Edit</span>
+            </Link>
+          )}
+          {can('sales', 'delete') && (
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all disabled:opacity-50"
+            >
+              <Trash2 className="w-5 h-5" />
+              <span>{deleting ? 'Menghapus...' : 'Hapus'}</span>
+            </button>
+          )}
         </div>
       </div>
 

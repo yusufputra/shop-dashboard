@@ -6,8 +6,10 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft, Save, TrendingUp } from 'lucide-react'
 import Link from 'next/link'
 import { generateSerialNumber } from '@/lib/utils'
+import { useRoutePermissionGuard } from '@/app/dashboard/dashboard-auth-context'
 
 export default function NewPurchasePage() {
+  useRoutePermissionGuard('purchases', 'create')
   const router = useRouter()
   const supabase = createClient()
   const [loading, setLoading] = useState(false)

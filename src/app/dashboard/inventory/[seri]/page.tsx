@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { formatCurrency, formatWeight } from '@/lib/utils'
 import { StokPerhiasan } from '@/types/database'
 import Image from 'next/image'
+import { useDashboardAuth } from '@/app/dashboard/dashboard-auth-context'
 
 interface SaleInfo {
   no: string
@@ -22,6 +23,7 @@ interface SaleInfo {
 
 export default function InventoryDetailPage({ params }: { params: Promise<{ seri: string }> }) {
   const { seri } = use(params)
+  const { can } = useDashboardAuth()
   const router = useRouter()
   const supabase = createClient()
   const [item, setItem] = useState<StokPerhiasan | null>(null)
@@ -137,21 +139,25 @@ export default function InventoryDetailPage({ params }: { params: Promise<{ seri
         </div>
 
         <div className="flex items-center gap-2">
-          <Link
-            href={`/dashboard/inventory/${item.seri}/edit`}
-            className="flex items-center gap-2 px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors"
-          >
-            <Edit className="w-4 h-4" />
-            <span>Edit</span>
-          </Link>
-          <button
-            onClick={handleDelete}
-            disabled={deleting}
-            className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
-          >
-            <Trash2 className="w-4 h-4" />
-            <span>{deleting ? 'Menghapus...' : 'Hapus'}</span>
-          </button>
+          {can('inventory', 'update') && (
+            <Link
+              href={`/dashboard/inventory/${item.seri}/edit`}
+              className="flex items-center gap-2 px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors"
+            >
+              <Edit className="w-4 h-4" />
+              <span>Edit</span>
+            </Link>
+          )}
+          {can('inventory', 'delete') && (
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>{deleting ? 'Menghapus...' : 'Hapus'}</span>
+            </button>
+          )}
         </div>
       </div>
 

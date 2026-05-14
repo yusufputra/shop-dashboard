@@ -6,8 +6,10 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft, Save } from 'lucide-react'
 import Link from 'next/link'
 import { PesananPerhiasan } from '@/types/database'
+import { useRoutePermissionGuard } from '@/app/dashboard/dashboard-auth-context'
 
 export default function EditOrderPage({ params }: { params: Promise<{ no: string }> }) {
+  useRoutePermissionGuard('orders', 'update')
   const { no } = use(params)
   const router = useRouter()
   const supabase = createClient()

@@ -8,8 +8,10 @@ import Link from 'next/link'
 import { generateSerialNumber, formatCurrency, formatWeight } from '@/lib/utils'
 import { StokPerhiasan } from '@/types/database'
 import Image from 'next/image'
+import { useRoutePermissionGuard } from '@/app/dashboard/dashboard-auth-context'
 
 export default function NewSalePage() {
+  useRoutePermissionGuard('sales', 'create')
   const router = useRouter()
   const supabase = createClient()
   const [loading, setLoading] = useState(false)

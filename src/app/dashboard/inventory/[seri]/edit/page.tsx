@@ -7,8 +7,10 @@ import { ArrowLeft, Save, Upload, X } from 'lucide-react'
 import Link from 'next/link'
 import { StokPerhiasan } from '@/types/database'
 import Image from 'next/image'
+import { useRoutePermissionGuard } from '@/app/dashboard/dashboard-auth-context'
 
 export default function EditInventoryPage({ params }: { params: Promise<{ seri: string }> }) {
+  useRoutePermissionGuard('inventory', 'update')
   const { seri } = use(params)
   const router = useRouter()
   const supabase = createClient()

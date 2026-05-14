@@ -8,9 +8,11 @@ import Link from 'next/link'
 import { formatCurrency, formatWeight } from '@/lib/utils'
 import { PembelianPerhiasan, StokPerhiasan } from '@/types/database'
 import Image from 'next/image'
+import { useDashboardAuth } from '@/app/dashboard/dashboard-auth-context'
 
 export default function PurchaseDetailPage({ params }: { params: Promise<{ seri: string }> }) {
   const { seri } = use(params)
+  const { can } = useDashboardAuth()
   const router = useRouter()
   const supabase = createClient()
   const [purchase, setPurchase] = useState<PembelianPerhiasan | null>(null)
@@ -113,21 +115,25 @@ export default function PurchaseDetailPage({ params }: { params: Promise<{ seri:
         </div>
 
         <div className="flex items-center gap-2">
-          <Link
-            href={`/dashboard/purchases/${purchase.seri}/edit`}
-            className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
-          >
-            <Edit className="w-4 h-4" />
-            <span>Edit</span>
-          </Link>
-          <button
-            onClick={handleDelete}
-            disabled={deleting}
-            className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
-          >
-            <Trash2 className="w-4 h-4" />
-            <span>{deleting ? 'Menghapus...' : 'Hapus'}</span>
-          </button>
+          {can('purchases', 'update') && (
+            <Link
+              href={`/dashboard/purchases/${purchase.seri}/edit`}
+              className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+            >
+              <Edit className="w-4 h-4" />
+              <span>Edit</span>
+            </Link>
+          )}
+          {can('purchases', 'delete') && (
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>{deleting ? 'Menghapus...' : 'Hapus'}</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -343,13 +349,15 @@ export default function PurchaseDetailPage({ params }: { params: Promise<{ seri:
                 <p className="text-gray-600 mb-4">
                   Barang ini belum ditambahkan ke stok inventori
                 </p>
-                <Link
-                  href={`/dashboard/inventory/new?from_purchase=${purchase.seri}`}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors"
-                >
-                  <Package className="w-4 h-4" />
-                  <span>Tambah ke Stok</span>
-                </Link>
+                {can('inventory', 'create') && (
+                  <Link
+                    href={`/dashboard/inventory/new?from_purchase=${purchase.seri}`}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors"
+                  >
+                    <Package className="w-4 h-4" />
+                    <span>Tambah ke Stok</span>
+                  </Link>
+                )}
               </div>
             </div>
           )}

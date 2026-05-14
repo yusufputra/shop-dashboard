@@ -7,8 +7,10 @@ import { ArrowLeft, Save, Upload, X } from 'lucide-react'
 import Link from 'next/link'
 import { generateSerialNumber } from '@/lib/utils'
 import Image from 'next/image'
+import { useRoutePermissionGuard } from '@/app/dashboard/dashboard-auth-context'
 
 function NewInventoryForm() {
+  useRoutePermissionGuard('inventory', 'create')
   const router = useRouter()
   const searchParams = useSearchParams()
   const fromPurchase = searchParams.get('from_purchase')

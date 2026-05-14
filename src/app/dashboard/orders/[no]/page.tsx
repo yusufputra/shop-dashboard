@@ -7,9 +7,11 @@ import { ArrowLeft, Edit, Trash2, Calendar, User, MapPin, Phone, Tag, Package, W
 import Link from 'next/link'
 import { formatCurrency, formatWeight } from '@/lib/utils'
 import { PesananPerhiasan } from '@/types/database'
+import { useDashboardAuth } from '@/app/dashboard/dashboard-auth-context'
 
 export default function OrderDetailPage({ params }: { params: Promise<{ no: string }> }) {
   const { no } = use(params)
+  const { can } = useDashboardAuth()
   const router = useRouter()
   const supabase = createClient()
   const [order, setOrder] = useState<PesananPerhiasan | null>(null)
@@ -97,21 +99,25 @@ export default function OrderDetailPage({ params }: { params: Promise<{ no: stri
         </div>
 
         <div className="flex items-center gap-2">
-          <Link
-            href={`/dashboard/orders/${order.no}/edit`}
-            className="flex items-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
-          >
-            <Edit className="w-4 h-4" />
-            <span>Edit</span>
-          </Link>
-          <button
-            onClick={handleDelete}
-            disabled={deleting}
-            className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
-          >
-            <Trash2 className="w-4 h-4" />
-            <span>{deleting ? 'Menghapus...' : 'Hapus'}</span>
-          </button>
+          {can('orders', 'update') && (
+            <Link
+              href={`/dashboard/orders/${order.no}/edit`}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
+            >
+              <Edit className="w-4 h-4" />
+              <span>Edit</span>
+            </Link>
+          )}
+          {can('orders', 'delete') && (
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>{deleting ? 'Menghapus...' : 'Hapus'}</span>
+            </button>
+          )}
         </div>
       </div>
 
