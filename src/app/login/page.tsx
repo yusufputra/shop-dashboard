@@ -2,7 +2,8 @@
 
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { LogIn, Gem } from 'lucide-react'
+import Image from 'next/image'
+import { LogIn } from 'lucide-react'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -46,11 +47,16 @@ export default function LoginPage() {
         <div className="bg-white rounded-2xl shadow-2xl p-8 border border-amber-100">
           {/* Logo & Header */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-amber-400 to-yellow-500 rounded-full mb-4 shadow-lg">
-              <Gem className="w-8 h-8 text-white" />
-            </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Toko Emas</h1>
-            <p className="text-gray-500">Dashboard Manajemen Perhiasan</p>
+            <Image
+              src="/images/logo-gold.png"
+              alt="KAIROS"
+              width={480}
+              height={160}
+              className="mx-auto h-28 w-auto max-w-full object-contain drop-shadow-md sm:h-36 md:h-40"
+              priority
+              unoptimized
+            />
+            <p className="mt-6 text-gray-500">Dashboard Manajemen Perhiasan</p>
           </div>
 
           {/* Login Form */}

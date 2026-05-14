@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft, Save } from 'lucide-react'
 import Link from 'next/link'
 import { PembelianPerhiasan } from '@/types/database'
+import { resolveCustomerIdByPublicId } from '@/lib/customers/resolve'
 import { useRoutePermissionGuard } from '@/app/dashboard/dashboard-auth-context'
 
 export default function EditPurchasePage({ params }: { params: Promise<{ seri: string }> }) {
@@ -15,6 +16,7 @@ export default function EditPurchasePage({ params }: { params: Promise<{ seri: s
   const supabase = createClient()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [customerPublicId, setCustomerPublicId] = useState('')
   const [formData, setFormData] = useState<Partial<PembelianPerhiasan>>({
     nama: '',
     alamat: '',
@@ -32,15 +34,24 @@ export default function EditPurchasePage({ params }: { params: Promise<{ seri: s
       try {
         const { data, error } = await supabase
           .from('pembelian_perhiasan')
-          .select('*')
+          .select('*, customers(public_id)')
           .eq('seri', seri)
           .single()
 
         if (error) throw error
         
+        const row = data as PembelianPerhiasan & {
+          customers?: { public_id: string } | null
+        }
+        setCustomerPublicId(
+          String(row.customers?.public_id ?? '')
+            .replace(/\D/g, '')
+            .slice(0, 10)
+        )
+        const { customers: _cust, ...rest } = row
         setFormData({
-          ...data,
-          tanggal: new Date(data.tanggal).toISOString().split('T')[0]
+          ...rest,
+          tanggal: new Date(rest.tanggal).toISOString().split('T')[0]
         })
       } catch (error) {
         console.error('Error loading purchase:', error)
@@ -59,6 +70,16 @@ export default function EditPurchasePage({ params }: { params: Promise<{ seri: s
     setSaving(true)
 
     try {
+      let customerId: string | null = null
+      const rawPid = customerPublicId.trim()
+      if (rawPid) {
+        customerId = await resolveCustomerIdByPublicId(supabase, rawPid)
+        if (!customerId) {
+          alert('ID pelanggan tidak ditemukan. Kosongkan atau perbaiki ID.')
+          return
+        }
+      }
+
       const { error } = await supabase
         .from('pembelian_perhiasan')
         .update({
@@ -70,7 +91,8 @@ export default function EditPurchasePage({ params }: { params: Promise<{ seri: s
           berat: formData.berat,
           harga: formData.harga,
           tanggal: formData.tanggal,
-          keterangan: formData.keterangan || null
+          keterangan: formData.keterangan || null,
+          customer_id: customerId
         })
         .eq('seri', seri)
 
@@ -148,6 +170,22 @@ export default function EditPurchasePage({ params }: { params: Promise<{ seri: s
               placeholder="Alamat lengkap penjual"
               rows={3}
               required
+            />
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              ID Pelanggan (10 digit, opsional)
+            </label>
+            <input
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              value={customerPublicId}
+              onChange={(e) => setCustomerPublicId(e.target.value)}
+              placeholder="10 digit ID dari menu Pelanggan"
+              maxLength={14}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none text-black"
             />
           </div>
 

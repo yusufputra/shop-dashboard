@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import {
   LayoutDashboard,
@@ -10,13 +11,14 @@ import {
   ClipboardList,
   Calculator,
   LogOut,
-  Gem,
   Menu,
   X,
   TrendingUp,
   Users,
   UsersRound,
+  Award,
   type LucideIcon,
+  Gem,
 } from 'lucide-react'
 import { useState } from 'react'
 import type { MenuKey } from '@/lib/auth/permissions'
@@ -39,6 +41,7 @@ const navigation: {
   { name: 'Kalkulator Emas', href: '/dashboard/calculator', icon: Calculator, menuKey: 'calculator' },
   { name: 'Pengguna', href: '/dashboard/users', icon: Users, menuKey: 'users' },
   { name: 'Grup pengguna', href: '/dashboard/user-groups', icon: UsersRound, menuKey: 'user_groups' },
+  { name: 'Pelanggan', href: '/dashboard/customers', icon: Award, menuKey: 'customers' },
 ]
 
 function DashboardShell({ children }: { children: React.ReactNode }) {
@@ -88,7 +91,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                 <Gem className="h-6 w-6 text-amber-600" />
               </div>
               <div>
-                <h1 className="text-lg font-bold text-white">Toko Emas</h1>
+                <h1 className="text-lg font-bold text-white">KAIROS</h1>
                 <p className="text-xs text-amber-100">Dashboard</p>
               </div>
             </div>

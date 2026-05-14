@@ -93,6 +93,64 @@ export interface Database {
           created_at?: string
         }
       }
+      customers: {
+        Row: {
+          customer_id: string
+          public_id: string
+          nama: string
+          phone: string | null
+          email: string | null
+          created_at: string
+        }
+        Insert: {
+          customer_id?: string
+          public_id: string
+          nama: string
+          phone?: string | null
+          email?: string | null
+          created_at?: string
+        }
+        Update: {
+          customer_id?: string
+          public_id?: string
+          nama?: string
+          phone?: string | null
+          email?: string | null
+          created_at?: string
+        }
+      }
+      customer_point_ledger: {
+        Row: {
+          ledger_id: string
+          customer_id: string
+          points: number
+          weight_grams: number
+          ref_type: string
+          ref_key: string
+          created_at: string
+          expires_at: string
+        }
+        Insert: {
+          ledger_id?: string
+          customer_id: string
+          points: number
+          weight_grams?: number
+          ref_type: string
+          ref_key: string
+          created_at?: string
+          expires_at: string
+        }
+        Update: {
+          ledger_id?: string
+          customer_id?: string
+          points?: number
+          weight_grams?: number
+          ref_type?: string
+          ref_key?: string
+          created_at?: string
+          expires_at?: string
+        }
+      }
       stok_perhiasan: {
         Row: {
           seri: string
@@ -152,6 +210,7 @@ export interface Database {
           berat: number
           harga: number
           keterangan: string | null
+          customer_id: string | null
           created_at: string
         }
         Insert: {
@@ -165,6 +224,7 @@ export interface Database {
           berat: number
           harga: number
           keterangan?: string | null
+          customer_id?: string | null
           created_at?: string
         }
         Update: {
@@ -178,6 +238,7 @@ export interface Database {
           berat?: number
           harga?: number
           keterangan?: string | null
+          customer_id?: string | null
           created_at?: string
         }
       }
@@ -239,6 +300,7 @@ export interface Database {
           harga_jual: number
           biaya: number | null
           keterangan: string | null
+          customer_id: string | null
           created_at: string
         }
         Insert: {
@@ -251,6 +313,7 @@ export interface Database {
           harga_jual: number
           biaya?: number | null
           keterangan?: string | null
+          customer_id?: string | null
           created_at?: string
         }
         Update: {
@@ -263,6 +326,7 @@ export interface Database {
           harga_jual?: number
           biaya?: number | null
           keterangan?: string | null
+          customer_id?: string | null
           created_at?: string
         }
       }
@@ -275,6 +339,8 @@ export type PembelianPerhiasan = Database['public']['Tables']['pembelian_perhias
 export type PesananPerhiasan = Database['public']['Tables']['pesanan_perhiasan']['Row']
 export type PenjualanPerhiasan = Database['public']['Tables']['penjualan_perhiasan']['Row']
 export type Login = Database['public']['Tables']['login']['Row']
+export type Customer = Database['public']['Tables']['customers']['Row']
+export type CustomerPointLedger = Database['public']['Tables']['customer_point_ledger']['Row']
 
 export interface GoldStandard {
   karat: number

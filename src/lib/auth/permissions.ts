@@ -7,6 +7,7 @@ export const MENU_KEYS = [
   'calculator',
   'users',
   'user_groups',
+  'customers',
 ] as const
 
 export type MenuKey = (typeof MENU_KEYS)[number]
@@ -28,6 +29,7 @@ export function emptyPermissions(): PermissionsMap {
     calculator: { ...nil },
     users: { ...nil },
     user_groups: { ...nil },
+    customers: { ...nil },
   }
 }
 
@@ -42,6 +44,7 @@ export function fullPermissions(): PermissionsMap {
     calculator: { ...all },
     users: { ...all },
     user_groups: { ...all },
+    customers: { ...all },
   }
 }
 
@@ -83,4 +86,5 @@ export const MENU_LABELS: Record<MenuKey, string> = {
   calculator: 'Kalkulator emas',
   users: 'Pengguna',
   user_groups: 'Grup pengguna',
+  customers: 'Pelanggan & poin',
 }

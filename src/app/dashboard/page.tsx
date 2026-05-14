@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import { useDashboardAuth } from '@/app/dashboard/dashboard-auth-context'
 import { TrendingUp, Package, ShoppingCart, ClipboardList, DollarSign, Download, Calendar } from 'lucide-react'
@@ -296,8 +297,20 @@ export default function DashboardPage() {
     <div className="space-y-6">
       {/* Welcome Section */}
       <div className="bg-gradient-to-r from-amber-500 to-yellow-500 rounded-xl p-6 text-white shadow-lg">
-        <h1 className="text-2xl font-bold mb-2">Selamat Datang di Dashboard Toko Emas</h1>
-        <p className="text-amber-50">Sistem Informasi Penjualan Perhiasan</p>
+        <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+          <Image
+            src="/images/logo-white.png"
+            alt="KAIROS"
+            width={180}
+            height={56}
+            className="h-12 w-auto max-w-[200px] shrink-0 object-contain object-left"
+            unoptimized
+          />
+          <div>
+            <h1 className="text-2xl font-bold mb-2">Selamat Datang di Dashboard KAIROS</h1>
+            <p className="text-amber-50">Sistem Informasi Penjualan Perhiasan</p>
+          </div>
+        </div>
       </div>
 
       {/* Filter Section */}

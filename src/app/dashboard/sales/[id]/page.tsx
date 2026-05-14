@@ -3,7 +3,7 @@
 import { use, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Edit, Trash2, Calendar, User, Phone, MapPin, Package, Tag } from 'lucide-react'
+import { ArrowLeft, Edit, Trash2, Calendar, User, Phone, MapPin, Package, Tag, Award } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useDashboardAuth } from '@/app/dashboard/dashboard-auth-context'
@@ -18,6 +18,8 @@ type SaleDetail = {
   harga_jual: number
   biaya: number | null
   keterangan: string | null
+  customer_id: string | null
+  customers?: { public_id: string } | null
   stok_perhiasan: {
     seri: string
     jenis: string
@@ -50,6 +52,7 @@ export default function SaleDetailPage({ params }: { params: Promise<{ id: strin
         .from('penjualan_perhiasan')
         .select(`
           *,
+          customers ( public_id ),
           stok_perhiasan (
             seri,
             jenis,
@@ -83,6 +86,14 @@ export default function SaleDetailPage({ params }: { params: Promise<{ id: strin
 
     setDeleting(true)
     try {
+      const { error: ledgerError } = await supabase
+        .from('customer_point_ledger')
+        .delete()
+        .eq('ref_type', 'penjualan')
+        .eq('ref_key', resolvedParams.id)
+
+      if (ledgerError) throw ledgerError
+
       // Update stock status back to available
       if (sale?.stok_seri) {
         const { error: stockError } = await supabase
@@ -129,6 +140,10 @@ export default function SaleDetailPage({ params }: { params: Promise<{ id: strin
   }
 
   const images = sale.stok_perhiasan.images
+  const linkedPublicId =
+    sale.customers?.public_id != null
+      ? String(sale.customers.public_id).replace(/\D/g, '').slice(0, 10)
+      : ''
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -341,6 +356,21 @@ export default function SaleDetailPage({ params }: { params: Promise<{ id: strin
                 <p className="font-medium text-gray-900">{sale.alamat}</p>
               </div>
             </div>
+
+            {linkedPublicId && can('customers', 'read') && (
+              <div className="flex items-start gap-3">
+                <Award className="w-5 h-5 text-gray-400 mt-1" />
+                <div>
+                  <p className="text-sm text-gray-500">ID Pelanggan (program)</p>
+                  <Link
+                    href={`/dashboard/customers/${linkedPublicId}`}
+                    className="font-medium text-amber-700 hover:underline"
+                  >
+                    {linkedPublicId}
+                  </Link>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

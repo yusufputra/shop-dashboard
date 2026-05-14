@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft, Save, TrendingUp } from 'lucide-react'
 import Link from 'next/link'
 import { generateSerialNumber } from '@/lib/utils'
+import { resolveCustomerIdByPublicId } from '@/lib/customers/resolve'
 import { useRoutePermissionGuard } from '@/app/dashboard/dashboard-auth-context'
 
 export default function NewPurchasePage() {
@@ -25,7 +26,8 @@ export default function NewPurchasePage() {
     model: '',
     berat: '',
     harga: '',
-    keterangan: ''
+    keterangan: '',
+    customer_public_id: ''
   })
 
   const fetchGoldPrice = async () => {
@@ -62,13 +64,30 @@ export default function NewPurchasePage() {
     setLoading(true)
 
     try {
+      const rawPid = formData.customer_public_id.trim()
+      let customerId: string | null = null
+      if (rawPid) {
+        customerId = await resolveCustomerIdByPublicId(supabase, rawPid)
+        if (!customerId) {
+          alert('ID pelanggan tidak ditemukan. Kosongkan atau perbaiki 10 digit ID dari menu Pelanggan.')
+          return
+        }
+      }
+
       const { error } = await supabase
         .from('pembelian_perhiasan')
         .insert([{
-          ...formData,
+          seri: formData.seri,
+          tanggal: formData.tanggal,
+          nama: formData.nama,
+          alamat: formData.alamat,
+          jenis: formData.jenis,
+          perhiasan: formData.perhiasan,
+          model: formData.model,
           berat: parseFloat(formData.berat),
           harga: parseFloat(formData.harga),
-          keterangan: formData.keterangan || null
+          keterangan: formData.keterangan || null,
+          customer_id: customerId,
         }])
 
       if (error) throw error
@@ -171,6 +190,26 @@ export default function NewPurchasePage() {
               required
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none text-black"
             />
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              ID Pelanggan (10 digit, opsional)
+            </label>
+            <input
+              type="text"
+              name="customer_public_id"
+              inputMode="numeric"
+              autoComplete="off"
+              value={formData.customer_public_id}
+              onChange={handleChange}
+              placeholder="Untuk menghubungkan ke profil & riwayat Pelanggan"
+              maxLength={14}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none text-black"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Hanya untuk pencatatan; poin hadiah hanya dari penjualan ke pelanggan (menu Penjualan).
+            </p>
           </div>
 
           <div>

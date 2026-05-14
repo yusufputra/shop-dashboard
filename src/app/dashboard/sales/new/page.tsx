@@ -6,6 +6,12 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft, Save, Search, X } from 'lucide-react'
 import Link from 'next/link'
 import { generateSerialNumber, formatCurrency, formatWeight } from '@/lib/utils'
+import {
+  defaultPointExpiryIso,
+  fetchCustomerByPublicId,
+  pointsForSaleWeight,
+  resolveCustomerIdByPublicId,
+} from '@/lib/customers/resolve'
 import { StokPerhiasan } from '@/types/database'
 import Image from 'next/image'
 import { useRoutePermissionGuard } from '@/app/dashboard/dashboard-auth-context'
@@ -15,6 +21,8 @@ export default function NewSalePage() {
   const router = useRouter()
   const supabase = createClient()
   const [loading, setLoading] = useState(false)
+  const [customerLookupLoading, setCustomerLookupLoading] = useState(false)
+  const [customerLookupMessage, setCustomerLookupMessage] = useState<string | null>(null)
   const [searchModalOpen, setSearchModalOpen] = useState(false)
   const [stockItems, setStockItems] = useState<StokPerhiasan[]>([])
   const [searchTerm, setSearchTerm] = useState('')
@@ -25,6 +33,7 @@ export default function NewSalePage() {
     nama_pembeli: '',
     alamat: '',
     no_telp: '',
+    customer_public_id: '',
     harga_jual: '',
     biaya: '',
     keterangan: ''
@@ -77,6 +86,16 @@ export default function NewSalePage() {
     setLoading(true)
 
     try {
+      const rawPid = formData.customer_public_id.trim()
+      let customerId: string | null = null
+      if (rawPid) {
+        customerId = await resolveCustomerIdByPublicId(supabase, rawPid)
+        if (!customerId) {
+          alert('ID pelanggan tidak ditemukan. Kosongkan atau perbaiki 10 digit ID dari menu Pelanggan.')
+          return
+        }
+      }
+
       // Insert sale record
       const { error: saleError } = await supabase
         .from('penjualan_perhiasan')
@@ -87,6 +106,7 @@ export default function NewSalePage() {
           nama_pembeli: formData.nama_pembeli,
           alamat: formData.alamat,
           no_telp: formData.no_telp || null,
+          customer_id: customerId,
           harga_jual: parseFloat(formData.harga_jual),
           biaya: formData.biaya ? parseFloat(formData.biaya) : null,
           keterangan: formData.keterangan || null
@@ -102,6 +122,27 @@ export default function NewSalePage() {
 
       if (updateError) throw updateError
 
+      if (customerId) {
+        const weight = Number(selectedStock.berat)
+        const pts = pointsForSaleWeight(weight)
+        if (pts > 0) {
+          const { error: ledgerError } = await supabase.from('customer_point_ledger').insert({
+            customer_id: customerId,
+            points: pts,
+            weight_grams: weight,
+            ref_type: 'penjualan',
+            ref_key: formData.no,
+            expires_at: defaultPointExpiryIso(),
+          })
+          if (ledgerError) {
+            console.error(ledgerError)
+            alert(
+              'Penjualan tersimpan, tetapi poin gagal dicatat (kemungkinan duplikat nomor). Hubungi admin jika perlu.'
+            )
+          }
+        }
+      }
+
       router.push('/dashboard/sales')
     } catch (error) {
       console.error('Error adding sale:', error)
@@ -112,7 +153,45 @@ export default function NewSalePage() {
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    if (e.target.name === 'customer_public_id') {
+      setCustomerLookupMessage(null)
+    }
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }))
+  }
+
+  const lookupCustomerFromPublicId = async (raw: string) => {
+    const digits = raw.replace(/\D/g, '').slice(0, 10)
+    if (digits.length === 0) {
+      setCustomerLookupMessage(null)
+      return
+    }
+    if (digits.length !== 10) {
+      setCustomerLookupMessage('ID harus 10 digit angka, atau kosongkan dan isi nama pembeli secara manual.')
+      return
+    }
+
+    setCustomerLookupLoading(true)
+    setCustomerLookupMessage(null)
+    try {
+      const row = await fetchCustomerByPublicId(supabase, raw)
+      if (row) {
+        setFormData((prev) => ({
+          ...prev,
+          customer_public_id: digits,
+          nama_pembeli: row.nama,
+          no_telp: row.phone ?? '',
+        }))
+        setCustomerLookupMessage('Pelanggan ditemukan — nama dan telepon sudah diisi otomatis.')
+      } else {
+        setFormData((prev) => ({
+          ...prev,
+          customer_public_id: digits,
+        }))
+        setCustomerLookupMessage('ID tidak terdaftar — isi nama pembeli dan telepon secara manual.')
+      }
+    } finally {
+      setCustomerLookupLoading(false)
+    }
   }
 
   return (
@@ -211,6 +290,53 @@ export default function NewSalePage() {
             />
           </div>
 
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              ID Pelanggan (10 digit, opsional)
+            </label>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
+              <input
+                type="text"
+                name="customer_public_id"
+                inputMode="numeric"
+                autoComplete="off"
+                value={formData.customer_public_id}
+                onChange={handleChange}
+                onBlur={(e) => {
+                  void lookupCustomerFromPublicId(e.target.value)
+                }}
+                placeholder="Isi dulu lalu klik Cari atau klik di luar kolom"
+                maxLength={14}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black sm:flex-1"
+              />
+              <button
+                type="button"
+                disabled={customerLookupLoading}
+                onClick={() => void lookupCustomerFromPublicId(formData.customer_public_id)}
+                className="shrink-0 rounded-lg border border-amber-600 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900 hover:bg-amber-100 disabled:opacity-50"
+              >
+                {customerLookupLoading ? 'Mencari…' : 'Cari pelanggan'}
+              </button>
+            </div>
+            {customerLookupMessage && (
+              <p
+                className={`text-xs mt-1 font-medium ${
+                  customerLookupMessage.includes('ditemukan —')
+                    ? 'text-green-700'
+                    : customerLookupMessage.includes('tidak terdaftar')
+                      ? 'text-red-700'
+                      : 'text-amber-800'
+                }`}
+              >
+                {customerLookupMessage}
+              </p>
+            )}
+            <p className="text-xs text-gray-500 mt-1">
+              Daftar pelanggan di menu Pelanggan. Jika ID valid, nama dan telepon terisi otomatis; jika tidak punya ID,
+              isi nama pembeli dan telepon di bawah secara manual. Poin = berat item (gram, ke bawah), berlaku 1 tahun.
+            </p>
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Nama Pembeli <span className="text-red-500">*</span>
@@ -221,7 +347,7 @@ export default function NewSalePage() {
               value={formData.nama_pembeli}
               onChange={handleChange}
               required
-              placeholder="Nama pelanggan"
+              placeholder="Terisi otomatis dari ID, atau ketik manual"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black"
             />
           </div>
@@ -235,7 +361,7 @@ export default function NewSalePage() {
               name="no_telp"
               value={formData.no_telp}
               onChange={handleChange}
-              placeholder="08xxxxxxxxxx"
+              placeholder="Terisi otomatis dari ID, atau ketik manual"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black"
             />
           </div>

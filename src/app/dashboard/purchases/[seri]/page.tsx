@@ -10,12 +10,16 @@ import { PembelianPerhiasan, StokPerhiasan } from '@/types/database'
 import Image from 'next/image'
 import { useDashboardAuth } from '@/app/dashboard/dashboard-auth-context'
 
+type PurchaseDetail = PembelianPerhiasan & {
+  customers?: { public_id: string } | null
+}
+
 export default function PurchaseDetailPage({ params }: { params: Promise<{ seri: string }> }) {
   const { seri } = use(params)
   const { can } = useDashboardAuth()
   const router = useRouter()
   const supabase = createClient()
-  const [purchase, setPurchase] = useState<PembelianPerhiasan | null>(null)
+  const [purchase, setPurchase] = useState<PurchaseDetail | null>(null)
   const [relatedItem, setRelatedItem] = useState<StokPerhiasan | null>(null)
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState(false)
@@ -25,12 +29,12 @@ export default function PurchaseDetailPage({ params }: { params: Promise<{ seri:
     try {
       const { data, error } = await supabase
         .from('pembelian_perhiasan')
-        .select('*')
+        .select('*, customers(public_id)')
         .eq('seri', seri)
         .single()
 
       if (error) throw error
-      setPurchase(data)
+      setPurchase(data as PurchaseDetail)
 
       // Load related inventory item if exists
       const { data: itemData } = await supabase
@@ -96,6 +100,11 @@ export default function PurchaseDetailPage({ params }: { params: Promise<{ seri:
       </div>
     )
   }
+
+  const linkedPublicId =
+    purchase.customers?.public_id != null
+      ? String(purchase.customers.public_id).replace(/\D/g, '').slice(0, 10)
+      : ''
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -163,6 +172,21 @@ export default function PurchaseDetailPage({ params }: { params: Promise<{ seri:
                   <p className="text-base text-gray-900">{purchase.alamat}</p>
                 </div>
               </div>
+
+              {linkedPublicId && can('customers', 'read') && (
+                <div className="flex items-start gap-3">
+                  <ShoppingBag className="w-5 h-5 text-gray-400 mt-0.5" />
+                  <div>
+                    <p className="text-sm text-gray-600">ID Pelanggan (program)</p>
+                    <Link
+                      href={`/dashboard/customers/${linkedPublicId}`}
+                      className="text-base font-medium text-amber-700 hover:underline"
+                    >
+                      {linkedPublicId}
+                    </Link>
+                  </div>
+                </div>
+              )}
 
               <div className="flex items-start gap-3">
                 <Calendar className="w-5 h-5 text-gray-400 mt-0.5" />
