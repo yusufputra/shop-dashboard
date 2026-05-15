@@ -5,6 +5,8 @@ CREATE TABLE IF NOT EXISTS customers (
   customer_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   public_id CHAR(10) NOT NULL UNIQUE,
   nama VARCHAR(255) NOT NULL,
+  nik VARCHAR(32),
+  alamat TEXT,
   phone VARCHAR(20),
   email VARCHAR(255),
   created_at TIMESTAMPTZ DEFAULT NOW()

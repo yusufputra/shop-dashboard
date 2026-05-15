@@ -98,6 +98,8 @@ export interface Database {
           customer_id: string
           public_id: string
           nama: string
+          nik: string | null
+          alamat: string | null
           phone: string | null
           email: string | null
           created_at: string
@@ -106,6 +108,8 @@ export interface Database {
           customer_id?: string
           public_id: string
           nama: string
+          nik?: string | null
+          alamat?: string | null
           phone?: string | null
           email?: string | null
           created_at?: string
@@ -114,6 +118,8 @@ export interface Database {
           customer_id?: string
           public_id?: string
           nama?: string
+          nik?: string | null
+          alamat?: string | null
           phone?: string | null
           email?: string | null
           created_at?: string

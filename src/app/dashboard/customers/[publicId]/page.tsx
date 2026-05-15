@@ -4,11 +4,11 @@ import { use, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Award, Download, ShoppingBag, TrendingUp } from 'lucide-react'
+import { ArrowLeft, Award, Download, Edit, ShoppingBag, TrendingUp } from 'lucide-react'
 import { normalizePublicIdInput } from '@/lib/customers/public-id'
 import { downloadCustomerCardPng } from '@/lib/customers/customer-card-download'
 import { formatCurrency, formatWeight } from '@/lib/utils'
-import { useRoutePermissionGuard } from '@/app/dashboard/dashboard-auth-context'
+import { useDashboardAuth, useRoutePermissionGuard } from '@/app/dashboard/dashboard-auth-context'
 import type { Customer, CustomerPointLedger } from '@/types/database'
 
 type SaleRow = {
@@ -27,6 +27,7 @@ type PurchaseRow = {
 
 export default function CustomerDetailPage({ params }: { params: Promise<{ publicId: string }> }) {
   useRoutePermissionGuard('customers', 'read')
+  const { can } = useDashboardAuth()
   const { publicId: publicIdParam } = use(params)
   const router = useRouter()
   const supabase = useMemo(() => createClient(), [])
@@ -140,18 +141,29 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ publi
             <p className="font-mono text-gray-600">ID: {displayId}</p>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            void downloadCustomerCardPng(customer, displayId).catch(() =>
-              alert('Gagal membuat kartu. Coba lagi.')
-            )
-          }}
-          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-amber-500 to-yellow-500 px-4 py-2.5 text-sm font-medium text-white shadow-md transition-all hover:from-amber-600 hover:to-yellow-600"
-        >
-          <Download className="h-4 w-4" />
-          Unduh kartu pelanggan
-        </button>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          {can('customers', 'update') && (
+            <Link
+              href={`/dashboard/customers/${displayId}/edit`}
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-amber-300 bg-white px-4 py-2.5 text-sm font-medium text-amber-800 shadow-sm transition-all hover:bg-amber-50"
+            >
+              <Edit className="h-4 w-4" />
+              Edit data
+            </Link>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              void downloadCustomerCardPng(customer, displayId).catch(() =>
+                alert('Gagal membuat kartu. Coba lagi.')
+              )
+            }}
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-amber-500 to-yellow-500 px-4 py-2.5 text-sm font-medium text-white shadow-md transition-all hover:from-amber-600 hover:to-yellow-600"
+          >
+            <Download className="h-4 w-4" />
+            Unduh kartu pelanggan
+          </button>
+        </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
@@ -167,8 +179,19 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ publi
         </div>
 
         <div className="rounded-xl bg-white p-6 shadow-md">
-          <h2 className="mb-3 text-lg font-semibold text-gray-900">Kontak</h2>
-          <p className="text-sm text-gray-600">Telepon: {customer.phone ?? '—'}</p>
+          <h2 className="mb-3 text-lg font-semibold text-gray-900">Data pelanggan</h2>
+          <p className="text-sm text-gray-600">
+            NIK: {customer.nik?.trim() ? customer.nik : '—'}
+          </p>
+          <p className="mt-2 text-sm text-gray-600">
+            Alamat:{' '}
+            {customer.alamat?.trim() ? (
+              <span className="whitespace-pre-wrap">{customer.alamat}</span>
+            ) : (
+              '—'
+            )}
+          </p>
+          <p className="mt-3 text-sm text-gray-600">Telepon: {customer.phone ?? '—'}</p>
           <p className="text-sm text-gray-600">Email: {customer.email ?? '—'}</p>
           <p className="mt-2 text-xs text-gray-500">
             Terdaftar: {new Date(customer.created_at).toLocaleString('id-ID')}
