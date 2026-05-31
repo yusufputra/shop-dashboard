@@ -48,12 +48,14 @@ ALTER TABLE customer_point_ledger ENABLE ROW LEVEL SECURITY;
 
 -- Dev / anon policy (samakan dengan setup_rls_policies untuk tabel lain)
 DROP POLICY IF EXISTS "Allow anon authenticated customers all" ON customers;
-CREATE POLICY "Allow anon authenticated customers all"
+DROP POLICY IF EXISTS "Dashboard anon authenticated all" ON customers;
+CREATE POLICY "Dashboard anon authenticated all"
   ON customers FOR ALL TO anon, authenticated
   USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Allow anon authenticated ledger all" ON customer_point_ledger;
-CREATE POLICY "Allow anon authenticated ledger all"
+DROP POLICY IF EXISTS "Dashboard anon authenticated all" ON customer_point_ledger;
+CREATE POLICY "Dashboard anon authenticated all"
   ON customer_point_ledger FOR ALL TO anon, authenticated
   USING (true) WITH CHECK (true);
 

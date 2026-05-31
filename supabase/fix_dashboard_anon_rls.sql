@@ -1,5 +1,13 @@
--- Sama dengan fix_dashboard_anon_rls.sql — jalankan salah satu di SQL Editor.
--- Lihat komentar di fix_dashboard_anon_rls.sql untuk penjelasan.
+-- =============================================================================
+-- Perbaikan RLS untuk dashboard Shop (browser memakai anon key, bukan Supabase Auth)
+-- =============================================================================
+-- Login app memakai cookie JWT + tabel `login`; client Supabase di browser tetap
+-- role `anon`. Policy hanya untuk `authenticated` membuat INSERT/UPDATE/DELETE gagal
+-- (42501: new row violates row-level security policy).
+--
+-- Jalankan sekali di SQL Editor Supabase setelah schema / migrasi lain.
+-- Aman dijalankan ulang (idempotent).
+-- =============================================================================
 
 -- ---------- stok_perhiasan ----------
 ALTER TABLE stok_perhiasan ENABLE ROW LEVEL SECURITY;
@@ -117,4 +125,5 @@ BEGIN
   END IF;
 END $$;
 
--- login / user_groups / RBAC: tetap tanpa policy untuk anon (hanya service_role dari API server).
+-- Verifikasi (opsional): SELECT tablename, policyname, roles, cmd FROM pg_policies
+-- WHERE schemaname = 'public' ORDER BY tablename;

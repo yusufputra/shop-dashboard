@@ -35,25 +35,29 @@ Run scripts in the Supabase **SQL Editor** (**SQL → New query**) in the order 
 
 | Order | File | Purpose |
 | ----- | ---- | ------- |
-| 1 | [`supabase/schema.sql`](../supabase/schema.sql) | Core tables (`stok_perhiasan`, `pembelian_perhiasan`, `pesanan_perhiasan`, `login`), indexes, RLS for authenticated users |
+| 1 | [`supabase/schema.sql`](../supabase/schema.sql) | Core tables (`stok_perhiasan`, `pembelian_perhiasan`, `pesanan_perhiasan`, `login`), indexes, RLS |
 | 2 | [`supabase/create_penjualan_table.sql`](../supabase/create_penjualan_table.sql) | Sales table `penjualan_perhiasan` (requires `stok_perhiasan`) |
+| — | [`supabase/fix_dashboard_anon_rls.sql`](../supabase/fix_dashboard_anon_rls.sql) | **Wajib untuk DB lama:** perbaiki RLS jika create/update gagal (42501) |
 | 3 | [`supabase/add_images_column.sql`](../supabase/add_images_column.sql) | `images` JSONB column on inventory |
 | 4 | [`supabase/add_warna_column.sql`](../supabase/add_warna_column.sql) | `warna` column on inventory |
 | 5 | [`supabase/add_biaya_column_to_penjualan.sql`](../supabase/add_biaya_column_to_penjualan.sql) | Optional cost field on sales |
 
 **Existing databases only:** If you created the project before these columns existed, you can also run [`supabase/migration_add_stock_status.sql`](../supabase/migration_add_stock_status.sql) (see [`MIGRATION_GUIDE.md`](../MIGRATION_GUIDE.md)). On a **fresh** install, `schema.sql` already includes `status` and `pembelian_seri` on `stok_perhiasan`, so that migration is optional.
 
-### Auth user (dashboard login)
+### Dashboard login & RLS
 
-The app signs in with **Supabase Auth** (email/password), not the legacy `login` table.
+Login memakai tabel **`login`** + cookie JWT (bukan Supabase Auth). Query dari browser memakai **`anon` key**, jadi policy RLS harus mengizinkan role **`anon`** (bukan hanya `authenticated`).
 
-1. **Authentication → Users → Add user → Create new user**
-2. Set email and password; enable **Auto Confirm User**.
-3. Use those credentials on `/login`.
+- **Instal baru:** `schema.sql` + `create_penjualan_table.sql` sudah memakai policy `Dashboard anon authenticated all`.
+- **Database lama** (hanya policy `authenticated`): jalankan [`supabase/fix_dashboard_anon_rls.sql`](../supabase/fix_dashboard_anon_rls.sql) sekali di SQL Editor.
 
-### Optional: broader RLS for local testing
+Tabel yang dibuka untuk dashboard: `stok_perhiasan`, `pembelian_perhiasan`, `pesanan_perhiasan`, `penjualan_perhiasan`, `customers`, `customer_point_ledger`. Tabel `login` / RBAC hanya lewat **service role** di API server ([`secure_login_rls.sql`](../supabase/secure_login_rls.sql)).
 
-[`supabase/setup_rls_policies.sql`](../supabase/setup_rls_policies.sql) relaxes table policies for **`anon` and `authenticated`** (useful for some dev setups). It is **not** recommended for production as-is. Prefer the policies created by `schema.sql` + `create_penjualan_table.sql` unless you know you need the relaxed rules.
+Buat user pertama di tabel `login` (atau seed dari migrasi RBAC); gunakan email/nama + password di `/login`.
+
+### Upload foto stok
+
+Jalankan juga [`supabase/setup_storage_policies.sql`](../supabase/setup_storage_policies.sql) agar role **`anon`** bisa upload ke bucket `jewelry-images`.
 
 ---
 
@@ -100,9 +104,11 @@ Restart `npm run dev` after changing config.
 
 ## 5. Troubleshooting
 
-### 403 `Unauthorized` — `new row violates row-level security policy`
+### 42501 / 403 — `new row violates row-level security policy`
 
-This response usually comes from **Storage** when an **upload** (`INSERT` into `storage.objects`) is rejected by RLS, or when you open an object URL that is not the **public** URL for a public bucket.
+**Tabel (`stok_perhiasan`, pembelian, dll.):** Jalankan [`supabase/fix_dashboard_anon_rls.sql`](../supabase/fix_dashboard_anon_rls.sql). Penyebab umum: policy hanya untuk `authenticated` padahal browser memakai `anon` key.
+
+**Storage:** Biasanya upload gambar ditolak RLS, atau URL gambar tanpa segmen `public`.
 
 **A. Fix the URL (viewing / linking images)**
 

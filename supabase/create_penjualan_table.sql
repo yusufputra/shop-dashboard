@@ -19,23 +19,8 @@ CREATE INDEX IF NOT EXISTS idx_penjualan_nama ON penjualan_perhiasan(nama_pembel
 -- Enable Row Level Security
 ALTER TABLE penjualan_perhiasan ENABLE ROW LEVEL SECURITY;
 
--- Create policies for authenticated users
-CREATE POLICY "Allow authenticated users to view penjualan"
-  ON penjualan_perhiasan FOR SELECT
-  TO authenticated
-  USING (true);
-
-CREATE POLICY "Allow authenticated users to insert penjualan"
-  ON penjualan_perhiasan FOR INSERT
-  TO authenticated
+CREATE POLICY "Dashboard anon authenticated all"
+  ON penjualan_perhiasan FOR ALL
+  TO anon, authenticated
+  USING (true)
   WITH CHECK (true);
-
-CREATE POLICY "Allow authenticated users to update penjualan"
-  ON penjualan_perhiasan FOR UPDATE
-  TO authenticated
-  USING (true);
-
-CREATE POLICY "Allow authenticated users to delete penjualan"
-  ON penjualan_perhiasan FOR DELETE
-  TO authenticated
-  USING (true);

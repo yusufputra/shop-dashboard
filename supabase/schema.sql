@@ -72,63 +72,21 @@ ALTER TABLE stok_perhiasan ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pembelian_perhiasan ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pesanan_perhiasan ENABLE ROW LEVEL SECURITY;
 
--- Create policies for authenticated users
-CREATE POLICY "Allow authenticated users to view stok"
-  ON stok_perhiasan FOR SELECT
-  TO authenticated
-  USING (true);
-
-CREATE POLICY "Allow authenticated users to insert stok"
-  ON stok_perhiasan FOR INSERT
-  TO authenticated
+-- Dashboard browser memakai anon key (login app = cookie JWT, bukan Supabase Auth)
+CREATE POLICY "Dashboard anon authenticated all"
+  ON stok_perhiasan FOR ALL
+  TO anon, authenticated
+  USING (true)
   WITH CHECK (true);
 
-CREATE POLICY "Allow authenticated users to update stok"
-  ON stok_perhiasan FOR UPDATE
-  TO authenticated
-  USING (true);
-
-CREATE POLICY "Allow authenticated users to delete stok"
-  ON stok_perhiasan FOR DELETE
-  TO authenticated
-  USING (true);
-
-CREATE POLICY "Allow authenticated users to view pembelian"
-  ON pembelian_perhiasan FOR SELECT
-  TO authenticated
-  USING (true);
-
-CREATE POLICY "Allow authenticated users to insert pembelian"
-  ON pembelian_perhiasan FOR INSERT
-  TO authenticated
+CREATE POLICY "Dashboard anon authenticated all"
+  ON pembelian_perhiasan FOR ALL
+  TO anon, authenticated
+  USING (true)
   WITH CHECK (true);
 
-CREATE POLICY "Allow authenticated users to update pembelian"
-  ON pembelian_perhiasan FOR UPDATE
-  TO authenticated
-  USING (true);
-
-CREATE POLICY "Allow authenticated users to delete pembelian"
-  ON pembelian_perhiasan FOR DELETE
-  TO authenticated
-  USING (true);
-
-CREATE POLICY "Allow authenticated users to view pesanan"
-  ON pesanan_perhiasan FOR SELECT
-  TO authenticated
-  USING (true);
-
-CREATE POLICY "Allow authenticated users to insert pesanan"
-  ON pesanan_perhiasan FOR INSERT
-  TO authenticated
+CREATE POLICY "Dashboard anon authenticated all"
+  ON pesanan_perhiasan FOR ALL
+  TO anon, authenticated
+  USING (true)
   WITH CHECK (true);
-
-CREATE POLICY "Allow authenticated users to update pesanan"
-  ON pesanan_perhiasan FOR UPDATE
-  TO authenticated
-  USING (true);
-
-CREATE POLICY "Allow authenticated users to delete pesanan"
-  ON pesanan_perhiasan FOR DELETE
-  TO authenticated
-  USING (true);
