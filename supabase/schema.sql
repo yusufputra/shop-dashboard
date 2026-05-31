@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS pembelian_perhiasan (
   tanggal DATE NOT NULL DEFAULT CURRENT_DATE,
   nama VARCHAR(255) NOT NULL,
   alamat TEXT NOT NULL,
-  jenis VARCHAR(100) NOT NULL,
+  kadar SMALLINT,
   perhiasan VARCHAR(100) NOT NULL,
   model VARCHAR(100) NOT NULL,
   berat DECIMAL(10, 2) NOT NULL,

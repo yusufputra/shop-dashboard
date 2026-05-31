@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { PembelianPerhiasan } from '@/types/database'
 import { resolveCustomerIdByPublicId } from '@/lib/customers/resolve'
 import { useRoutePermissionGuard } from '@/app/dashboard/dashboard-auth-context'
+import { KADAR_K_OPTIONS, parseKadarKSelect } from '@/lib/utils'
 
 export default function EditPurchasePage({ params }: { params: Promise<{ seri: string }> }) {
   useRoutePermissionGuard('purchases', 'update')
@@ -20,7 +21,6 @@ export default function EditPurchasePage({ params }: { params: Promise<{ seri: s
   const [formData, setFormData] = useState<Partial<PembelianPerhiasan>>({
     nama: '',
     alamat: '',
-    jenis: '',
     perhiasan: '',
     model: '',
     berat: 0,
@@ -85,7 +85,7 @@ export default function EditPurchasePage({ params }: { params: Promise<{ seri: s
         .update({
           nama: formData.nama,
           alamat: formData.alamat,
-          jenis: formData.jenis,
+          kadar: formData.kadar ?? null,
           perhiasan: formData.perhiasan,
           model: formData.model,
           berat: formData.berat,
@@ -190,18 +190,23 @@ export default function EditPurchasePage({ params }: { params: Promise<{ seri: s
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Jenis
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Kadar</label>
             <select
-              value={formData.jenis}
-              onChange={(e) => setFormData({ ...formData, jenis: e.target.value })}
+              value={formData.kadar == null ? '' : `${formData.kadar}K`}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  kadar: parseKadarKSelect(e.target.value),
+                })
+              }
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none text-black"
-              required
             >
-              <option value="">Pilih Jenis</option>
-              <option value="baru">Baru</option>
-              <option value="bekas">Bekas</option>
+              <option value="">Belum diisi</option>
+              {KADAR_K_OPTIONS.map((k) => (
+                <option key={k} value={k}>
+                  {k}
+                </option>
+              ))}
             </select>
           </div>
 

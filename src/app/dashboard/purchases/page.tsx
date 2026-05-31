@@ -38,11 +38,12 @@ export default function PurchasesPage() {
   }, [loadPurchases])
 
   useEffect(() => {
+    const q = searchTerm.toLowerCase()
     const filtered = purchases.filter(item =>
-      item.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.perhiasan.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.jenis.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.seri.toLowerCase().includes(searchTerm.toLowerCase())
+      item.nama.toLowerCase().includes(q) ||
+      item.perhiasan.toLowerCase().includes(q) ||
+      item.seri.toLowerCase().includes(q) ||
+      (item.kadar != null && String(item.kadar).includes(searchTerm))
     )
     setFilteredPurchases(filtered)
   }, [searchTerm, purchases])
@@ -97,7 +98,7 @@ export default function PurchasesPage() {
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Cari berdasarkan nama, seri, jenis..."
+            placeholder="Cari berdasarkan nama, seri, kadar..."
             className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none text-black"
           />
         </div>
@@ -125,6 +126,7 @@ export default function PurchasesPage() {
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-900 uppercase">Tanggal</th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-900 uppercase">Nama</th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-900 uppercase">Perhiasan</th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-900 uppercase">Kadar</th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-900 uppercase">Berat</th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-900 uppercase">Harga</th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-900 uppercase">Aksi</th>
@@ -133,7 +135,7 @@ export default function PurchasesPage() {
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredPurchases.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
                     Tidak ada data pembelian
                   </td>
                 </tr>
@@ -148,6 +150,9 @@ export default function PurchasesPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.nama}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.perhiasan}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {item.kadar == null ? '—' : `${item.kadar}K`}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {formatWeight(Number(item.berat))}
                     </td>

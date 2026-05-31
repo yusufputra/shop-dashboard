@@ -106,6 +106,8 @@ export default function PurchaseDetailPage({ params }: { params: Promise<{ seri:
       ? String(purchase.customers.public_id).replace(/\D/g, '').slice(0, 10)
       : ''
 
+  const kadarLabel = purchase.kadar == null ? '—' : `${purchase.kadar}K`
+
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       {/* Header */}
@@ -215,8 +217,8 @@ export default function PurchaseDetailPage({ params }: { params: Promise<{ seri:
               <div className="flex items-start gap-3">
                 <Tag className="w-5 h-5 text-gray-400 mt-0.5" />
                 <div>
-                  <p className="text-sm text-gray-600">Jenis</p>
-                  <p className="text-base font-medium text-gray-900">{purchase.jenis}</p>
+                  <p className="text-sm text-gray-600">Kadar</p>
+                  <p className="text-base font-medium text-gray-900">{kadarLabel}</p>
                 </div>
               </div>
 

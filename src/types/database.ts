@@ -210,7 +210,7 @@ export interface Database {
           tanggal: string
           nama: string
           alamat: string
-          jenis: string
+          kadar: number | null
           perhiasan: string
           model: string
           berat: number
@@ -224,7 +224,7 @@ export interface Database {
           tanggal?: string
           nama: string
           alamat: string
-          jenis: string
+          kadar?: number | null
           perhiasan: string
           model: string
           berat: number
@@ -238,7 +238,7 @@ export interface Database {
           tanggal?: string
           nama?: string
           alamat?: string
-          jenis?: string
+          kadar?: number | null
           perhiasan?: string
           model?: string
           berat?: number

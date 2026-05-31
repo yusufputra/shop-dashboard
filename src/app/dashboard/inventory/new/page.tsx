@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ArrowLeft, Save, Upload, X } from 'lucide-react'
 import Link from 'next/link'
-import { generateSerialNumber } from '@/lib/utils'
+import { generateSerialNumber, KADAR_K_OPTIONS } from '@/lib/utils'
 import Image from 'next/image'
 import { useRoutePermissionGuard } from '@/app/dashboard/dashboard-auth-context'
 
@@ -54,7 +54,7 @@ function NewInventoryForm() {
         if (data) {
           setFormData(prev => ({
             ...prev,
-            jenis: data.jenis,
+            jenis: data.kadar != null ? `${data.kadar}K` : '',
             perhiasan: data.perhiasan,
             model: data.model,
             berat: data.berat.toString(),
@@ -279,30 +279,11 @@ function NewInventoryForm() {
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black"
             >
               <option value="">Pilih Kadar</option>
-              <option value="1K">1K</option>
-              <option value="2K">2K</option>
-              <option value="3K">3K</option>
-              <option value="4K">4K</option>
-              <option value="5K">5K</option>
-              <option value="6K">6K</option>
-              <option value="7K">7K</option>
-              <option value="8K">8K</option>
-              <option value="9K">9K</option>
-              <option value="10K">10K</option>
-              <option value="11K">11K</option>
-              <option value="12K">12K</option>
-              <option value="13K">13K</option>
-              <option value="14K">14K</option>
-              <option value="15K">15K</option>
-              <option value="16K">16K</option>
-              <option value="17K">17K</option>
-              <option value="18K">18K</option>
-              <option value="19K">19K</option>
-              <option value="20K">20K</option>
-              <option value="21K">21K</option>
-              <option value="22K">22K</option>
-              <option value="23K">23K</option>
-              <option value="24K">24K</option>
+              {KADAR_K_OPTIONS.map((k) => (
+                <option key={k} value={k}>
+                  {k}
+                </option>
+              ))}
             </select>
           </div>
 

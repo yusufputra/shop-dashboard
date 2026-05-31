@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Save, TrendingUp } from 'lucide-react'
 import Link from 'next/link'
-import { generateSerialNumber } from '@/lib/utils'
+import { generateSerialNumber, KADAR_K_OPTIONS, parseKadarKSelect } from '@/lib/utils'
 import { resolveCustomerIdByPublicId } from '@/lib/customers/resolve'
 import { useRoutePermissionGuard } from '@/app/dashboard/dashboard-auth-context'
 
@@ -21,7 +21,7 @@ export default function NewPurchasePage() {
     tanggal: new Date().toISOString().split('T')[0],
     nama: '',
     alamat: '',
-    jenis: '',
+    kadar: '',
     perhiasan: '',
     model: '',
     berat: '',
@@ -74,6 +74,12 @@ export default function NewPurchasePage() {
         }
       }
 
+      const kadarNum = parseKadarKSelect(formData.kadar)
+      if (kadarNum == null) {
+        alert('Pilih kadar')
+        return
+      }
+
       const { error } = await supabase
         .from('pembelian_perhiasan')
         .insert([{
@@ -81,7 +87,7 @@ export default function NewPurchasePage() {
           tanggal: formData.tanggal,
           nama: formData.nama,
           alamat: formData.alamat,
-          jenis: formData.jenis,
+          kadar: kadarNum,
           perhiasan: formData.perhiasan,
           model: formData.model,
           berat: parseFloat(formData.berat),
@@ -214,21 +220,21 @@ export default function NewPurchasePage() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Jenis <span className="text-red-500">*</span>
+              Kadar <span className="text-red-500">*</span>
             </label>
             <select
-              name="jenis"
-              value={formData.jenis}
+              name="kadar"
+              value={formData.kadar}
               onChange={handleChange}
               required
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none text-black"
             >
-              <option value="">Pilih Jenis</option>
-              <option value="Emas Kuning 18K">Emas Kuning 18K</option>
-              <option value="Emas Kuning 14K">Emas Kuning 14K</option>
-              <option value="Emas Merah 18K">Emas Merah 18K</option>
-              <option value="Emas Putih 18K">Emas Putih 18K</option>
-              <option value="Perak">Perak</option>
+              <option value="">Pilih Kadar</option>
+              {KADAR_K_OPTIONS.map((k) => (
+                <option key={k} value={k}>
+                  {k}
+                </option>
+              ))}
             </select>
           </div>
 

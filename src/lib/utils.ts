@@ -18,6 +18,20 @@ export const GOLD_STANDARDS: GoldStandard[] = [
   { karat: 8, percentage: 33.3, sniMin: 0, sniMax: 0 },
 ]
 
+/** Opsi dropdown kadar di form stok & pembelian: "1K" … "24K". */
+export const KADAR_K_OPTIONS: readonly string[] = Array.from(
+  { length: 24 },
+  (_, i) => `${i + 1}K`
+)
+
+export function parseKadarKSelect(value: string): number | null {
+  const m = /^(\d+)K$/i.exec(value.trim())
+  if (!m) return null
+  const n = parseInt(m[1], 10)
+  if (n < 1 || n > 24) return null
+  return n
+}
+
 export interface MixCalculation {
   goldWeight: number
   copperWeight: number
