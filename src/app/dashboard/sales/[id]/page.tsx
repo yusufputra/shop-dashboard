@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft, Edit, Trash2, Calendar, User, Phone, MapPin, Package, Tag, Award } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
+import { formatCreatedByLabel } from '@/lib/audit/created-by'
 import { customerPublicIdPath } from '@/lib/customers/public-id'
 import { useDashboardAuth } from '@/app/dashboard/dashboard-auth-context'
 
@@ -19,6 +20,7 @@ type SaleDetail = {
   harga_jual: number
   biaya: number | null
   keterangan: string | null
+  created_by_nama: string | null
   customer_id: string | null
   customers?: { public_id: string } | null
   stok_perhiasan: {
@@ -289,6 +291,16 @@ export default function SaleDetailPage({ params }: { params: Promise<{ id: strin
                     month: 'long',
                     day: 'numeric'
                   })}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3">
+              <User className="w-5 h-5 text-gray-400 mt-1" />
+              <div>
+                <p className="text-sm text-gray-500">Dibuat oleh</p>
+                <p className="font-medium text-gray-900">
+                  {formatCreatedByLabel(sale.created_by_nama)}
                 </p>
               </div>
             </div>

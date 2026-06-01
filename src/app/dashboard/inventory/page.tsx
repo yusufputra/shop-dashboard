@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Plus, Search, Edit, Trash2, Eye, Filter } from 'lucide-react'
+import { formatCreatedByLabel } from '@/lib/audit/created-by'
 import { formatCurrency, formatWeight } from '@/lib/utils'
 import { StokPerhiasan } from '@/types/database'
 import Link from 'next/link'
@@ -281,6 +282,9 @@ export default function InventoryPage() {
                   Harga
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-900 uppercase tracking-wider">
+                  Dibuat oleh
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-900 uppercase tracking-wider">
                   Aksi
                 </th>
               </tr>
@@ -288,7 +292,7 @@ export default function InventoryPage() {
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredInventory.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={12} className="px-6 py-12 text-center text-gray-500">
                     Tidak ada data stok perhiasan
                   </td>
                 </tr>
@@ -358,6 +362,9 @@ export default function InventoryPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {formatCurrency(Number(item.harga))}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                      {formatCreatedByLabel(item.created_by_nama)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                       <div className="flex items-center gap-2">

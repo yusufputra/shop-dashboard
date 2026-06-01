@@ -7,10 +7,12 @@ import { ArrowLeft, Save, TrendingUp } from 'lucide-react'
 import Link from 'next/link'
 import { generateSerialNumber, KADAR_K_OPTIONS, parseKadarKSelect } from '@/lib/utils'
 import { resolveCustomerIdByPublicId } from '@/lib/customers/resolve'
-import { useRoutePermissionGuard } from '@/app/dashboard/dashboard-auth-context'
+import { useDashboardAuth, useRoutePermissionGuard } from '@/app/dashboard/dashboard-auth-context'
+import { createdByFields } from '@/lib/audit/created-by'
 
 export default function NewPurchasePage() {
   useRoutePermissionGuard('purchases', 'create')
+  const { session } = useDashboardAuth()
   const router = useRouter()
   const supabase = createClient()
   const [loading, setLoading] = useState(false)
@@ -94,6 +96,7 @@ export default function NewPurchasePage() {
           harga: parseFloat(formData.harga),
           keterangan: formData.keterangan || null,
           customer_id: customerId,
+          ...createdByFields(session),
         }])
 
       if (error) throw error

@@ -23,6 +23,8 @@ CREATE TABLE IF NOT EXISTS stok_perhiasan (
   status VARCHAR(20) NOT NULL DEFAULT 'available',
   pembelian_seri VARCHAR(50),
   keterangan TEXT,
+  created_by UUID REFERENCES login(user_id) ON DELETE SET NULL,
+  created_by_nama VARCHAR(255),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -38,6 +40,8 @@ CREATE TABLE IF NOT EXISTS pembelian_perhiasan (
   berat DECIMAL(10, 2) NOT NULL,
   harga DECIMAL(15, 2) NOT NULL,
   keterangan TEXT,
+  created_by UUID REFERENCES login(user_id) ON DELETE SET NULL,
+  created_by_nama VARCHAR(255),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

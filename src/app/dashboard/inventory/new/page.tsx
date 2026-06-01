@@ -7,10 +7,12 @@ import { ArrowLeft, Save, Upload, X } from 'lucide-react'
 import Link from 'next/link'
 import { generateSerialNumber, KADAR_K_OPTIONS } from '@/lib/utils'
 import Image from 'next/image'
-import { useRoutePermissionGuard } from '@/app/dashboard/dashboard-auth-context'
+import { useDashboardAuth, useRoutePermissionGuard } from '@/app/dashboard/dashboard-auth-context'
+import { createdByFields } from '@/lib/audit/created-by'
 
 function NewInventoryForm() {
   useRoutePermissionGuard('inventory', 'create')
+  const { session } = useDashboardAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
   const fromPurchase = searchParams.get('from_purchase')
@@ -169,7 +171,8 @@ function NewInventoryForm() {
           pembelian_seri: formData.pembelian_seri || null,
           keterangan: formData.keterangan || null,
           images: imageUrls.length > 0 ? imageUrls : null,
-          warna: formData.warna || null
+          warna: formData.warna || null,
+          ...createdByFields(session),
         }])
 
       if (error) throw error

@@ -14,10 +14,12 @@ import {
 } from '@/lib/customers/resolve'
 import { StokPerhiasan } from '@/types/database'
 import Image from 'next/image'
-import { useRoutePermissionGuard } from '@/app/dashboard/dashboard-auth-context'
+import { useDashboardAuth, useRoutePermissionGuard } from '@/app/dashboard/dashboard-auth-context'
+import { createdByFields } from '@/lib/audit/created-by'
 
 export default function NewSalePage() {
   useRoutePermissionGuard('sales', 'create')
+  const { session } = useDashboardAuth()
   const router = useRouter()
   const supabase = createClient()
   const [loading, setLoading] = useState(false)
@@ -109,7 +111,8 @@ export default function NewSalePage() {
           customer_id: customerId,
           harga_jual: parseFloat(formData.harga_jual),
           biaya: formData.biaya ? parseFloat(formData.biaya) : null,
-          keterangan: formData.keterangan || null
+          keterangan: formData.keterangan || null,
+          ...createdByFields(session),
         }])
 
       if (saleError) throw saleError

@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Edit, Trash2, Calendar, Tag, Package, Weight, DollarSign, FileText, User, Phone, MapPin, ShoppingCart } from 'lucide-react'
 import Link from 'next/link'
+import { formatCreatedByLabel } from '@/lib/audit/created-by'
 import { formatCurrency, formatWeight } from '@/lib/utils'
 import { StokPerhiasan } from '@/types/database'
 import Image from 'next/image'
@@ -346,6 +347,16 @@ export default function InventoryDetailPage({ params }: { params: Promise<{ seri
                       month: 'long',
                       day: 'numeric'
                     })}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <User className="w-5 h-5 text-gray-400 mt-0.5" />
+                <div>
+                  <p className="text-sm text-gray-600">Dibuat oleh</p>
+                  <p className="text-base font-medium text-gray-900">
+                    {formatCreatedByLabel(item.created_by_nama)}
                   </p>
                 </div>
               </div>

@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Plus, Search, Eye, Trash2 } from 'lucide-react'
+import { formatCreatedByLabel } from '@/lib/audit/created-by'
 import { formatCurrency, formatWeight } from '@/lib/utils'
 import Link from 'next/link'
 import { useDashboardAuth } from '@/app/dashboard/dashboard-auth-context'
@@ -15,6 +16,7 @@ interface SaleWithStock {
   no_telp: string | null
   harga_jual: number
   biaya: number | null
+  created_by_nama: string | null
   stok_seri: string
   perhiasan: string
   jenis: string
@@ -165,13 +167,14 @@ export default function SalesPage() {
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-900 uppercase">Item</th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-900 uppercase">Biaya</th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-900 uppercase">Harga Jual</th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-900 uppercase">Dibuat oleh</th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-900 uppercase">Aksi</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredSales.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={10} className="px-6 py-12 text-center text-gray-500">
                     Tidak ada data penjualan
                   </td>
                 </tr>
@@ -195,6 +198,9 @@ export default function SalesPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-amber-600">
                       {formatCurrency(Number(item.harga_jual))}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                      {formatCreatedByLabel(item.created_by_nama)}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex gap-2 justify-end">

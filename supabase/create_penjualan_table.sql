@@ -8,6 +8,8 @@ CREATE TABLE IF NOT EXISTS penjualan_perhiasan (
   no_telp VARCHAR(20),
   harga_jual DECIMAL(15, 2) NOT NULL,
   keterangan TEXT,
+  created_by UUID REFERENCES login(user_id) ON DELETE SET NULL,
+  created_by_nama VARCHAR(255),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

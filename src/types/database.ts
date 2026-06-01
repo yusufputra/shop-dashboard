@@ -171,6 +171,8 @@ export interface Database {
           keterangan: string | null
           images: string[] | null
           warna: string | null
+          created_by: string | null
+          created_by_nama: string | null
           created_at: string
         }
         Insert: {
@@ -186,6 +188,8 @@ export interface Database {
           keterangan?: string | null
           images?: string[] | null
           warna?: string | null
+          created_by?: string | null
+          created_by_nama?: string | null
           created_at?: string
         }
         Update: {
@@ -201,6 +205,8 @@ export interface Database {
           keterangan?: string | null
           images?: string[] | null
           warna?: string | null
+          created_by?: string | null
+          created_by_nama?: string | null
           created_at?: string
         }
       }
@@ -217,6 +223,8 @@ export interface Database {
           harga: number
           keterangan: string | null
           customer_id: string | null
+          created_by: string | null
+          created_by_nama: string | null
           created_at: string
         }
         Insert: {
@@ -231,6 +239,8 @@ export interface Database {
           harga: number
           keterangan?: string | null
           customer_id?: string | null
+          created_by?: string | null
+          created_by_nama?: string | null
           created_at?: string
         }
         Update: {
@@ -245,6 +255,8 @@ export interface Database {
           harga?: number
           keterangan?: string | null
           customer_id?: string | null
+          created_by?: string | null
+          created_by_nama?: string | null
           created_at?: string
         }
       }
@@ -307,6 +319,8 @@ export interface Database {
           biaya: number | null
           keterangan: string | null
           customer_id: string | null
+          created_by: string | null
+          created_by_nama: string | null
           created_at: string
         }
         Insert: {
@@ -320,6 +334,8 @@ export interface Database {
           biaya?: number | null
           keterangan?: string | null
           customer_id?: string | null
+          created_by?: string | null
+          created_by_nama?: string | null
           created_at?: string
         }
         Update: {
@@ -333,6 +349,8 @@ export interface Database {
           biaya?: number | null
           keterangan?: string | null
           customer_id?: string | null
+          created_by?: string | null
+          created_by_nama?: string | null
           created_at?: string
         }
       }

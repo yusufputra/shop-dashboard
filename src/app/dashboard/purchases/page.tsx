@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Plus, Search, Edit, Trash2, Eye } from 'lucide-react'
+import { formatCreatedByLabel } from '@/lib/audit/created-by'
 import { formatCurrency, formatWeight } from '@/lib/utils'
 import { PembelianPerhiasan } from '@/types/database'
 import Link from 'next/link'
@@ -129,13 +130,14 @@ export default function PurchasesPage() {
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-900 uppercase">Kadar</th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-900 uppercase">Berat</th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-900 uppercase">Harga</th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-900 uppercase">Dibuat oleh</th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-900 uppercase">Aksi</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredPurchases.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={9} className="px-6 py-12 text-center text-gray-500">
                     Tidak ada data pembelian
                   </td>
                 </tr>
@@ -158,6 +160,9 @@ export default function PurchasesPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {formatCurrency(Number(item.harga))}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                      {formatCreatedByLabel(item.created_by_nama)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <div className="flex items-center gap-2">
