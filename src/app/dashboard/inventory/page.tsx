@@ -82,7 +82,8 @@ export default function InventoryPage() {
       item.perhiasan.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.jenis.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.seri.toLowerCase().includes(searchTerm.toLowerCase())
+      item.seri.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.fyen ?? '').toLowerCase().includes(searchTerm.toLowerCase())
     )
 
     // Filter by Tanggal Masuk
@@ -277,6 +278,9 @@ export default function InventoryPage() {
                   Model
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-900 uppercase tracking-wider">
+                  Fyen
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-900 uppercase tracking-wider">
                   Berat
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-900 uppercase tracking-wider">
@@ -293,7 +297,7 @@ export default function InventoryPage() {
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredInventory.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={13} className="px-6 py-12 text-center text-gray-500">
                     Tidak ada data stok perhiasan
                   </td>
                 </tr>
@@ -360,6 +364,9 @@ export default function InventoryPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {item.model}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {item.fyen?.trim() || '—'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {formatWeight(Number(item.berat))}

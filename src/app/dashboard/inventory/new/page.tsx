@@ -38,7 +38,8 @@ function NewInventoryForm() {
     harga: '',
     pembelian_seri: '',
     keterangan: '',
-    warna: ''
+    warna: '',
+    fyen: '',
   })
 
   useEffect(() => {
@@ -168,6 +169,7 @@ function NewInventoryForm() {
           jenis: formData.jenis,
           perhiasan: formData.perhiasan,
           model: formData.model,
+          fyen: formData.fyen.trim() || null,
           berat: parseFloat(formData.berat),
           harga: parseFloat(formData.harga),
           pembelian_seri: formData.pembelian_seri || null,
@@ -343,6 +345,17 @@ function NewInventoryForm() {
               onChange={handleChange}
               required
               placeholder="Contoh: Klasik, Modern, Etnik"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Fyen</label>
+            <input
+              type="text"
+              name="fyen"
+              value={formData.fyen}
+              onChange={handleChange}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black"
             />
           </div>

@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS stok_perhiasan (
   jenis VARCHAR(100) NOT NULL,
   perhiasan VARCHAR(100) NOT NULL,
   model VARCHAR(100) NOT NULL,
+  fyen VARCHAR(255),
   berat DECIMAL(10, 2) NOT NULL,
   harga DECIMAL(15, 2) NOT NULL,
   status VARCHAR(20) NOT NULL DEFAULT 'available',

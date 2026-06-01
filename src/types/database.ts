@@ -164,6 +164,7 @@ export interface Database {
           jenis: string
           perhiasan: string
           model: string
+          fyen: string | null
           berat: number
           harga: number
           status: string
@@ -181,6 +182,7 @@ export interface Database {
           jenis: string
           perhiasan: string
           model: string
+          fyen?: string | null
           berat: number
           harga: number
           status?: string
@@ -198,6 +200,7 @@ export interface Database {
           jenis?: string
           perhiasan?: string
           model?: string
+          fyen?: string | null
           berat?: number
           harga?: number
           status?: string
