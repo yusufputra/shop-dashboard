@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { ArrowLeft, Save } from 'lucide-react'
-import { normalizePublicIdInput } from '@/lib/customers/public-id'
+import { customerPublicIdPath, normalizePublicIdInput } from '@/lib/customers/public-id'
 import { useRoutePermissionGuard } from '@/app/dashboard/dashboard-auth-context'
 
 export default function EditCustomerPage({ params }: { params: Promise<{ publicId: string }> }) {
@@ -26,7 +26,7 @@ export default function EditCustomerPage({ params }: { params: Promise<{ publicI
   })
 
   useEffect(() => {
-    if (publicId.length !== 10) {
+    if (!publicId) {
       setLoading(false)
       setCustomerId(null)
       return
@@ -87,7 +87,7 @@ export default function EditCustomerPage({ params }: { params: Promise<{ publicI
         .eq('customer_id', customerId)
 
       if (error) throw error
-      router.push(`/dashboard/customers/${publicId}`)
+      router.push(`/dashboard/customers/${customerPublicIdPath(publicId)}`)
     } catch (err) {
       console.error(err)
       alert('Gagal menyimpan perubahan')
@@ -104,7 +104,7 @@ export default function EditCustomerPage({ params }: { params: Promise<{ publicI
     )
   }
 
-  if (publicId.length !== 10 || !customerId) {
+  if (!publicId || !customerId) {
     return (
       <div className="space-y-4 py-12 text-center">
         <p className="text-gray-600">Pelanggan tidak ditemukan.</p>
@@ -118,7 +118,7 @@ export default function EditCustomerPage({ params }: { params: Promise<{ publicI
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div className="flex items-center gap-4">
-        <Link href={`/dashboard/customers/${publicId}`} className="rounded-lg p-2 hover:bg-gray-100">
+        <Link href={`/dashboard/customers/${customerPublicIdPath(publicId)}`} className="rounded-lg p-2 hover:bg-gray-100">
           <ArrowLeft className="h-6 w-6 text-gray-600" />
         </Link>
         <div>
@@ -202,7 +202,7 @@ export default function EditCustomerPage({ params }: { params: Promise<{ publicI
             )}
           </button>
           <Link
-            href={`/dashboard/customers/${publicId}`}
+            href={`/dashboard/customers/${customerPublicIdPath(publicId)}`}
             className="rounded-lg border border-gray-300 px-6 py-3 text-gray-700 hover:bg-gray-50"
           >
             Batal

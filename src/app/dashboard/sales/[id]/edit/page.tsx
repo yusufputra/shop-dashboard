@@ -65,9 +65,7 @@ export default function EditSalePage({ params }: { params: Promise<{ id: string 
         nama_pembeli: row.nama_pembeli,
         alamat: row.alamat,
         no_telp: row.no_telp ?? '',
-        customer_public_id: String(row.customers?.public_id ?? '')
-          .replace(/\D/g, '')
-          .slice(0, 10),
+        customer_public_id: String(row.customers?.public_id ?? '').trim(),
         harga_jual: row.harga_jual,
         biaya: row.biaya,
         keterangan: row.keterangan || ''
@@ -227,16 +225,14 @@ export default function EditSalePage({ params }: { params: Promise<{ id: string 
 
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              ID Pelanggan (10 digit, opsional)
+              Nomor pelanggan (opsional)
             </label>
             <input
               type="text"
               name="customer_public_id"
-              inputMode="numeric"
               autoComplete="off"
               value={formData.customer_public_id}
               onChange={handleChange}
-              maxLength={14}
               placeholder="Dari menu Pelanggan — mengisi di sini tidak menambah poin untuk transaksi lama"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black"
             />

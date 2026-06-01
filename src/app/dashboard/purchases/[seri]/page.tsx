@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Edit, Trash2, Calendar, User, MapPin, Tag, Package, Weight, DollarSign, FileText, ShoppingBag } from 'lucide-react'
 import Link from 'next/link'
+import { customerPublicIdPath } from '@/lib/customers/public-id'
 import { formatCurrency, formatWeight } from '@/lib/utils'
 import { PembelianPerhiasan, StokPerhiasan } from '@/types/database'
 import Image from 'next/image'
@@ -102,9 +103,7 @@ export default function PurchaseDetailPage({ params }: { params: Promise<{ seri:
   }
 
   const linkedPublicId =
-    purchase.customers?.public_id != null
-      ? String(purchase.customers.public_id).replace(/\D/g, '').slice(0, 10)
-      : ''
+    purchase.customers?.public_id != null ? String(purchase.customers.public_id).trim() : ''
 
   const kadarLabel = purchase.kadar == null ? '—' : `${purchase.kadar}K`
 
@@ -181,7 +180,7 @@ export default function PurchaseDetailPage({ params }: { params: Promise<{ seri:
                   <div>
                     <p className="text-sm text-gray-600">ID Pelanggan (program)</p>
                     <Link
-                      href={`/dashboard/customers/${linkedPublicId}`}
+                      href={`/dashboard/customers/${customerPublicIdPath(linkedPublicId)}`}
                       className="text-base font-medium text-amber-700 hover:underline"
                     >
                       {linkedPublicId}

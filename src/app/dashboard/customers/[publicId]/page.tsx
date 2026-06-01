@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Award, Download, Edit, ShoppingBag, TrendingUp } from 'lucide-react'
-import { normalizePublicIdInput } from '@/lib/customers/public-id'
+import { customerPublicIdPath, normalizePublicIdInput } from '@/lib/customers/public-id'
 import { downloadCustomerCardPng } from '@/lib/customers/customer-card-download'
 import { formatCurrency, formatWeight } from '@/lib/utils'
 import { useDashboardAuth, useRoutePermissionGuard } from '@/app/dashboard/dashboard-auth-context'
@@ -40,7 +40,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ publi
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (publicId.length !== 10) {
+    if (!publicId) {
       setLoading(false)
       setCustomer(null)
       return
@@ -116,7 +116,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ publi
     )
   }
 
-  if (publicId.length !== 10 || !customer) {
+  if (!publicId || !customer) {
     return (
       <div className="space-y-4 py-12 text-center">
         <p className="text-gray-600">Pelanggan tidak ditemukan.</p>
@@ -127,7 +127,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ publi
     )
   }
 
-  const displayId = String(customer.public_id).replace(/\D/g, '').slice(0, 10)
+  const displayId = String(customer.public_id)
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -144,7 +144,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ publi
         <div className="flex shrink-0 flex-wrap gap-2">
           {can('customers', 'update') && (
             <Link
-              href={`/dashboard/customers/${displayId}/edit`}
+              href={`/dashboard/customers/${customerPublicIdPath(displayId)}/edit`}
               className="inline-flex items-center justify-center gap-2 rounded-lg border border-amber-300 bg-white px-4 py-2.5 text-sm font-medium text-amber-800 shadow-sm transition-all hover:bg-amber-50"
             >
               <Edit className="h-4 w-4" />

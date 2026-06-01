@@ -1,9 +1,9 @@
--- Pelanggan (ID publik 10 digit), poin dari penjualan (1 poin / gram), kedaluwarsa 1 tahun.
+-- Pelanggan (nomor/ID publik unik), poin dari penjualan (1 poin / gram), kedaluwarsa 1 tahun.
 -- Opsional: tautkan penjualan & pembelian ke pelanggan.
 
 CREATE TABLE IF NOT EXISTS customers (
   customer_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  public_id CHAR(10) NOT NULL UNIQUE,
+  public_id VARCHAR(255) NOT NULL UNIQUE,
   nama VARCHAR(255) NOT NULL,
   nik VARCHAR(32),
   alamat TEXT,

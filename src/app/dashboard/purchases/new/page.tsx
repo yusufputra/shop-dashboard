@@ -69,7 +69,7 @@ export default function NewPurchasePage() {
       if (rawPid) {
         customerId = await resolveCustomerIdByPublicId(supabase, rawPid)
         if (!customerId) {
-          alert('ID pelanggan tidak ditemukan. Kosongkan atau perbaiki 10 digit ID dari menu Pelanggan.')
+          alert('Nomor pelanggan tidak ditemukan. Kosongkan atau perbaiki nomor dari menu Pelanggan.')
           return
         }
       }
@@ -200,17 +200,15 @@ export default function NewPurchasePage() {
 
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              ID Pelanggan (10 digit, opsional)
+              Nomor pelanggan (opsional)
             </label>
             <input
               type="text"
               name="customer_public_id"
-              inputMode="numeric"
               autoComplete="off"
               value={formData.customer_public_id}
               onChange={handleChange}
               placeholder="Untuk menghubungkan ke profil & riwayat Pelanggan"
-              maxLength={14}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none text-black"
             />
             <p className="text-xs text-gray-500 mt-1">

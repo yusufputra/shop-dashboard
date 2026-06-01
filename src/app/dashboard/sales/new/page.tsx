@@ -91,7 +91,7 @@ export default function NewSalePage() {
       if (rawPid) {
         customerId = await resolveCustomerIdByPublicId(supabase, rawPid)
         if (!customerId) {
-          alert('ID pelanggan tidak ditemukan. Kosongkan atau perbaiki 10 digit ID dari menu Pelanggan.')
+          alert('Nomor pelanggan tidak ditemukan. Kosongkan atau perbaiki nomor dari menu Pelanggan.')
           return
         }
       }
@@ -160,24 +160,20 @@ export default function NewSalePage() {
   }
 
   const lookupCustomerFromPublicId = async (raw: string) => {
-    const digits = raw.replace(/\D/g, '').slice(0, 10)
-    if (digits.length === 0) {
+    const id = raw.trim()
+    if (!id) {
       setCustomerLookupMessage(null)
-      return
-    }
-    if (digits.length !== 10) {
-      setCustomerLookupMessage('ID harus 10 digit angka, atau kosongkan dan isi nama pembeli secara manual.')
       return
     }
 
     setCustomerLookupLoading(true)
     setCustomerLookupMessage(null)
     try {
-      const row = await fetchCustomerByPublicId(supabase, raw)
+      const row = await fetchCustomerByPublicId(supabase, id)
       if (row) {
         setFormData((prev) => ({
           ...prev,
-          customer_public_id: digits,
+          customer_public_id: id,
           nama_pembeli: row.nama,
           no_telp: row.phone ?? '',
         }))
@@ -185,7 +181,7 @@ export default function NewSalePage() {
       } else {
         setFormData((prev) => ({
           ...prev,
-          customer_public_id: digits,
+          customer_public_id: id,
         }))
         setCustomerLookupMessage('ID tidak terdaftar — isi nama pembeli dan telepon secara manual.')
       }
@@ -292,13 +288,12 @@ export default function NewSalePage() {
 
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              ID Pelanggan (10 digit, opsional)
+              Nomor pelanggan (opsional)
             </label>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
               <input
                 type="text"
                 name="customer_public_id"
-                inputMode="numeric"
                 autoComplete="off"
                 value={formData.customer_public_id}
                 onChange={handleChange}
@@ -306,7 +301,6 @@ export default function NewSalePage() {
                   void lookupCustomerFromPublicId(e.target.value)
                 }}
                 placeholder="Isi dulu lalu klik Cari atau klik di luar kolom"
-                maxLength={14}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black sm:flex-1"
               />
               <button

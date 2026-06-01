@@ -10,12 +10,12 @@ export async function fetchCustomerByPublicId(
   supabase: SupabaseClient,
   raw: string
 ): Promise<CustomerLookupRow | null> {
-  const digits = raw.replace(/\D/g, '').slice(0, 10)
-  if (digits.length !== 10) return null
+  const public_id = raw.trim()
+  if (!public_id) return null
   const { data } = await supabase
     .from('customers')
     .select('customer_id, nama, phone')
-    .eq('public_id', digits)
+    .eq('public_id', public_id)
     .maybeSingle()
   if (!data) return null
   return {

@@ -43,11 +43,7 @@ export default function EditPurchasePage({ params }: { params: Promise<{ seri: s
         const row = data as PembelianPerhiasan & {
           customers?: { public_id: string } | null
         }
-        setCustomerPublicId(
-          String(row.customers?.public_id ?? '')
-            .replace(/\D/g, '')
-            .slice(0, 10)
-        )
+        setCustomerPublicId(String(row.customers?.public_id ?? '').trim())
         const { customers: _cust, ...rest } = row
         setFormData({
           ...rest,
@@ -175,16 +171,14 @@ export default function EditPurchasePage({ params }: { params: Promise<{ seri: s
 
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              ID Pelanggan (10 digit, opsional)
+              Nomor pelanggan (opsional)
             </label>
             <input
               type="text"
-              inputMode="numeric"
               autoComplete="off"
               value={customerPublicId}
               onChange={(e) => setCustomerPublicId(e.target.value)}
-              placeholder="10 digit ID dari menu Pelanggan"
-              maxLength={14}
+              placeholder="Nomor pelanggan dari menu Pelanggan"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none text-black"
             />
           </div>

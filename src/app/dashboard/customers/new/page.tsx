@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Save } from 'lucide-react'
-import { generateCustomerPublicId } from '@/lib/customers/public-id'
+import { customerPublicIdPath } from '@/lib/customers/public-id'
 import { useRoutePermissionGuard } from '@/app/dashboard/dashboard-auth-context'
 
 export default function NewCustomerPage() {
@@ -14,6 +14,7 @@ export default function NewCustomerPage() {
   const supabase = createClient()
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
+    public_id: '',
     nama: '',
     nik: '',
     alamat: '',
@@ -29,27 +30,32 @@ export default function NewCustomerPage() {
     e.preventDefault()
     setLoading(true)
     try {
-      for (let i = 0; i < 12; i++) {
-        const public_id = generateCustomerPublicId()
-        const { error } = await supabase.from('customers').insert({
-          public_id,
-          nama: formData.nama.trim(),
-          nik: formData.nik.replace(/\D/g, '').slice(0, 16) || null,
-          alamat: formData.alamat.trim() || null,
-          phone: formData.phone.trim() || null,
-          email: formData.email.trim() || null,
-        })
-        if (!error) {
-          router.push(`/dashboard/customers/${public_id}`)
-          return
-        }
-        if (error.code !== '23505') {
-          console.error(error)
-          alert('Gagal menyimpan pelanggan')
-          return
-        }
+      const public_id = formData.public_id.trim()
+      if (!public_id) {
+        alert('Nomor pelanggan wajib diisi.')
+        return
       }
-      alert('Gagal membuat ID unik setelah beberapa percobaan. Coba lagi.')
+
+      const { error } = await supabase.from('customers').insert({
+        public_id,
+        nama: formData.nama.trim(),
+        nik: formData.nik.replace(/\D/g, '').slice(0, 16) || null,
+        alamat: formData.alamat.trim() || null,
+        phone: formData.phone.trim() || null,
+        email: formData.email.trim() || null,
+      })
+
+      if (error) {
+        if (error.code === '23505') {
+          alert('Nomor pelanggan sudah dipakai. Gunakan nomor lain.')
+          return
+        }
+        console.error(error)
+        alert('Gagal menyimpan pelanggan')
+        return
+      }
+
+      router.push(`/dashboard/customers/${customerPublicIdPath(public_id)}`)
     } finally {
       setLoading(false)
     }
@@ -63,14 +69,29 @@ export default function NewCustomerPage() {
         </Link>
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Pelanggan baru</h1>
-          <p className="text-gray-600">ID 10 digit dibuat otomatis (acak).</p>
+          <p className="text-gray-600">Isi nomor pelanggan secara manual (unik).</p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6 rounded-xl bg-white p-6 shadow-md">
         <div>
           <label className="mb-2 block text-sm font-medium text-gray-700">
-            Nama <span className="text-red-500">*</span>
+            Nomor pelanggan <span className="text-red-500">*</span>
+          </label>
+          <input
+            name="public_id"
+            value={formData.public_id}
+            onChange={handleChange}
+            required
+            autoComplete="off"
+            placeholder="Nomor pelanggan di toko Anda"
+            className="w-full rounded-lg border border-gray-300 px-4 py-3 text-black outline-none focus:border-transparent focus:ring-2 focus:ring-amber-500"
+          />
+          <p className="mt-1 text-xs text-gray-500">Harus unik di sistem.</p>
+        </div>
+        <div>
+          <label className="mb-2 block text-sm font-medium text-gray-700">
+            Nama Lengkap <span className="text-red-500">*</span>
           </label>
           <input
             name="nama"

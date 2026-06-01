@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft, Edit, Trash2, Calendar, User, Phone, MapPin, Package, Tag, Award } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
+import { customerPublicIdPath } from '@/lib/customers/public-id'
 import { useDashboardAuth } from '@/app/dashboard/dashboard-auth-context'
 
 type SaleDetail = {
@@ -141,9 +142,7 @@ export default function SaleDetailPage({ params }: { params: Promise<{ id: strin
 
   const images = sale.stok_perhiasan.images
   const linkedPublicId =
-    sale.customers?.public_id != null
-      ? String(sale.customers.public_id).replace(/\D/g, '').slice(0, 10)
-      : ''
+    sale.customers?.public_id != null ? String(sale.customers.public_id).trim() : ''
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -363,7 +362,7 @@ export default function SaleDetailPage({ params }: { params: Promise<{ id: strin
                 <div>
                   <p className="text-sm text-gray-500">ID Pelanggan (program)</p>
                   <Link
-                    href={`/dashboard/customers/${linkedPublicId}`}
+                    href={`/dashboard/customers/${customerPublicIdPath(linkedPublicId)}`}
                     className="font-medium text-amber-700 hover:underline"
                   >
                     {linkedPublicId}

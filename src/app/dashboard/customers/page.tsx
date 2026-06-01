@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Plus } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { customerPublicIdPath } from '@/lib/customers/public-id'
 import { useDashboardAuth, useRoutePermissionGuard } from '@/app/dashboard/dashboard-auth-context'
 import type { Customer, CustomerPointLedger } from '@/types/database'
 
@@ -61,7 +62,7 @@ export default function CustomersPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Pelanggan & poin</h1>
           <p className="text-gray-600">
-            ID 10 digit per pelanggan. Poin aktif = jumlah entri jurnal yang belum kedaluwarsa (1 tahun per
+            Nomor pelanggan unik per orang. Poin aktif = jumlah entri jurnal yang belum kedaluwarsa (1 tahun per
             penjualan).
           </p>
         </div>
@@ -85,7 +86,7 @@ export default function CustomersPage() {
                   Nama
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-700">
-                  ID (10 digit)
+                  Nomor pelanggan
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-700">
                   Kontak
@@ -104,12 +105,15 @@ export default function CustomersPage() {
                 </tr>
               ) : (
                 customers.map((c) => {
-                  const pid = String(c.public_id).replace(/\D/g, '').slice(0, 10)
+                  const pid = String(c.public_id)
                   const pts = activePointsByCustomer.get(c.customer_id) ?? 0
                   return (
                     <tr key={c.customer_id} className="hover:bg-gray-50/80">
                       <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                        <Link href={`/dashboard/customers/${pid}`} className="text-amber-700 hover:underline">
+                        <Link
+                          href={`/dashboard/customers/${customerPublicIdPath(pid)}`}
+                          className="text-amber-700 hover:underline"
+                        >
                           {c.nama}
                         </Link>
                       </td>
