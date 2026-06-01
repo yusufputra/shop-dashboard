@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Plus, Search, Edit, Trash2, Eye, Filter } from 'lucide-react'
 import { formatCreatedByLabel } from '@/lib/audit/created-by'
+import { warnaLabel } from '@/lib/warna-options'
 import { formatCurrency, formatWeight } from '@/lib/utils'
 import { StokPerhiasan } from '@/types/database'
 import Link from 'next/link'
@@ -343,9 +344,12 @@ export default function InventoryPage() {
                           item.warna === 'kuning' ? 'bg-yellow-100 text-yellow-900' :
                           item.warna === 'rosegold' ? 'bg-pink-100 text-pink-900' :
                           item.warna === 'putih' ? 'bg-gray-100 text-gray-900' :
+                          item.warna === 'hitam' ? 'bg-gray-800 text-white' :
+                          item.warna === 'merah' ? 'bg-red-100 text-red-900' :
+                          item.warna === 'variasi' ? 'bg-purple-100 text-purple-900' :
                           'bg-gray-100 text-gray-900'
                         }`}>
-                          {item.warna.charAt(0).toUpperCase() + item.warna.slice(1)}
+                          {warnaLabel(item.warna)}
                         </span>
                       ) : (
                         <span className="text-gray-400">-</span>

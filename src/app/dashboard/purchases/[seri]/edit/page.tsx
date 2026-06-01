@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { PembelianPerhiasan } from '@/types/database'
 import { resolveCustomerIdByPublicId } from '@/lib/customers/resolve'
 import { useRoutePermissionGuard } from '@/app/dashboard/dashboard-auth-context'
+import { normalizePerhiasanForSelect, PERHIASAN_OPTIONS } from '@/lib/perhiasan-options'
 import { KADAR_K_OPTIONS, parseKadarKSelect } from '@/lib/utils'
 
 export default function EditPurchasePage({ params }: { params: Promise<{ seri: string }> }) {
@@ -47,6 +48,7 @@ export default function EditPurchasePage({ params }: { params: Promise<{ seri: s
         const { customers: _cust, ...rest } = row
         setFormData({
           ...rest,
+          perhiasan: normalizePerhiasanForSelect(rest.perhiasan ?? ''),
           tanggal: new Date(rest.tanggal).toISOString().split('T')[0]
         })
       } catch (error) {
@@ -215,11 +217,11 @@ export default function EditPurchasePage({ params }: { params: Promise<{ seri: s
               required
             >
               <option value="">Pilih Perhiasan</option>
-              <option value="gelang">Gelang</option>
-              <option value="kalung">Kalung</option>
-              <option value="cincin">Cincin</option>
-              <option value="anting">Anting</option>
-              <option value="liontin">Liontin</option>
+              {PERHIASAN_OPTIONS.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
             </select>
           </div>
 

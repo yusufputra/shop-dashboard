@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft, Edit, Trash2, Calendar, Tag, Package, Weight, DollarSign, FileText, User, Phone, MapPin, ShoppingCart } from 'lucide-react'
 import Link from 'next/link'
 import { formatCreatedByLabel } from '@/lib/audit/created-by'
+import { warnaLabel } from '@/lib/warna-options'
 import { formatCurrency, formatWeight } from '@/lib/utils'
 import { StokPerhiasan } from '@/types/database'
 import Image from 'next/image'
@@ -374,7 +375,7 @@ export default function InventoryDetailPage({ params }: { params: Promise<{ seri
                   <Tag className="w-5 h-5 text-gray-400 mt-0.5" />
                   <div>
                     <p className="text-sm text-gray-600">Warna</p>
-                    <p className="text-base font-medium text-gray-900 capitalize">{item.warna}</p>
+                    <p className="text-base font-medium text-gray-900">{warnaLabel(item.warna)}</p>
                   </div>
                 </div>
               )}

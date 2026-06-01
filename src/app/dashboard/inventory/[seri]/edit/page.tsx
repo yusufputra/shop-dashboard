@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft, Save, Upload, X } from 'lucide-react'
 import Link from 'next/link'
 import { StokPerhiasan } from '@/types/database'
+import { PERHIASAN_OPTIONS } from '@/lib/perhiasan-options'
+import { normalizeWarnaForSelect, WARNA_OPTIONS } from '@/lib/warna-options'
 import { KADAR_K_OPTIONS } from '@/lib/utils'
 import Image from 'next/image'
 import { useRoutePermissionGuard } from '@/app/dashboard/dashboard-auth-context'
@@ -56,7 +58,7 @@ export default function EditInventoryPage({ params }: { params: Promise<{ seri: 
         berat: String(item.berat),
         harga: String(item.harga),
         keterangan: item.keterangan || '',
-        warna: item.warna || ''
+        warna: normalizeWarnaForSelect(item.warna || '')
       })
 
       if (item.images && item.images.length > 0) {
@@ -273,9 +275,11 @@ export default function EditInventoryPage({ params }: { params: Promise<{ seri: 
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black"
             >
               <option value="">Pilih Warna</option>
-              <option value="kuning">Kuning</option>
-              <option value="rosegold">Rosegold</option>
-              <option value="putih">Putih</option>
+              {WARNA_OPTIONS.map((w) => (
+                <option key={w.value} value={w.value}>
+                  {w.label}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -291,11 +295,11 @@ export default function EditInventoryPage({ params }: { params: Promise<{ seri: 
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black"
             >
               <option value="">Pilih Perhiasan</option>
-              <option value="Kalung">Kalung</option>
-              <option value="Gelang">Gelang</option>
-              <option value="Cincin">Cincin</option>
-              <option value="Anting">Anting</option>
-              <option value="Liontin">Liontin</option>
+              {PERHIASAN_OPTIONS.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
             </select>
           </div>
 
