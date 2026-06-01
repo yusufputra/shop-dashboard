@@ -10,7 +10,15 @@ import { WARNA_OPTIONS } from '@/lib/warna-options'
 import { generateSerialNumber, KADAR_K_OPTIONS } from '@/lib/utils'
 import Image from 'next/image'
 import { useDashboardAuth, useRoutePermissionGuard } from '@/app/dashboard/dashboard-auth-context'
+import { InventoryExtraFields } from '@/app/dashboard/inventory/inventory-extra-fields'
 import { createdByFields } from '@/lib/audit/created-by'
+import {
+  buildInventoryDimensionPayload,
+  clearDimensionsOnPerhiasanChange,
+  clearDimensionsOnTipeGelangChange,
+  EMPTY_INVENTORY_DIMENSIONS,
+  validateInventoryDimensions,
+} from '@/lib/inventory-extra-fields'
 
 function NewInventoryForm() {
   useRoutePermissionGuard('inventory', 'create')
@@ -40,6 +48,7 @@ function NewInventoryForm() {
     keterangan: '',
     warna: '',
     fyen: '',
+    ...EMPTY_INVENTORY_DIMENSIONS,
   })
 
   useEffect(() => {
@@ -123,9 +132,16 @@ function NewInventoryForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    const dimErr = validateInventoryDimensions(formData)
+    if (dimErr) {
+      alert(dimErr)
+      return
+    }
+
     setLoading(true)
 
     try {
+
       // Upload images to Supabase Storage first
       const imageUrls: string[] = []
       
@@ -176,6 +192,7 @@ function NewInventoryForm() {
           keterangan: formData.keterangan || null,
           images: imageUrls.length > 0 ? imageUrls : null,
           warna: formData.warna || null,
+          ...buildInventoryDimensionPayload(formData),
           ...createdByFields(session),
         }])
 
@@ -195,6 +212,13 @@ function NewInventoryForm() {
     const { name, value } = e.target
 
     setFormData(prev => {
+      if (name === 'perhiasan') {
+        return { ...prev, ...clearDimensionsOnPerhiasanChange(value) }
+      }
+      if (name === 'tipe_gelang') {
+        return { ...prev, ...clearDimensionsOnTipeGelangChange(value) }
+      }
+
       const next = { ...prev, [name]: value }
 
       // If berat changes and we use gold price, auto-calc harga
@@ -333,6 +357,16 @@ function NewInventoryForm() {
               ))}
             </select>
           </div>
+
+          <InventoryExtraFields
+            kode_pabrik={formData.kode_pabrik}
+            perhiasan={formData.perhiasan}
+            ring_cm={formData.ring_cm}
+            panjang_cm={formData.panjang_cm}
+            tipe_gelang={formData.tipe_gelang}
+            diameter_cm={formData.diameter_cm}
+            onChange={handleChange}
+          />
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft, Edit, Trash2, Calendar, Tag, Package, Weight, DollarSign, FileText, User, Phone, MapPin, ShoppingCart } from 'lucide-react'
 import Link from 'next/link'
 import { formatCreatedByLabel } from '@/lib/audit/created-by'
+import { inventoryDimensionDetailLines } from '@/lib/inventory-extra-fields'
 import { warnaLabel } from '@/lib/warna-options'
 import { formatCurrency, formatWeight } from '@/lib/utils'
 import { StokPerhiasan } from '@/types/database'
@@ -387,6 +388,16 @@ export default function InventoryDetailPage({ params }: { params: Promise<{ seri
                   <p className="text-base font-medium text-gray-900">{item.perhiasan}</p>
                 </div>
               </div>
+
+              {inventoryDimensionDetailLines(item).map((line) => (
+                <div key={line.label} className="flex items-start gap-3">
+                  <Tag className="w-5 h-5 text-gray-400 mt-0.5" />
+                  <div>
+                    <p className="text-sm text-gray-600">{line.label}</p>
+                    <p className="text-base font-medium text-gray-900">{line.value}</p>
+                  </div>
+                </div>
+              ))}
 
               <div className="flex items-start gap-3">
                 <Tag className="w-5 h-5 text-gray-400 mt-0.5" />

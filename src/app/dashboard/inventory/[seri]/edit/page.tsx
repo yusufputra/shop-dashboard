@@ -8,6 +8,15 @@ import Link from 'next/link'
 import { StokPerhiasan } from '@/types/database'
 import { PERHIASAN_OPTIONS } from '@/lib/perhiasan-options'
 import { normalizeWarnaForSelect, WARNA_OPTIONS } from '@/lib/warna-options'
+import { InventoryExtraFields } from '@/app/dashboard/inventory/inventory-extra-fields'
+import {
+  buildInventoryDimensionPayload,
+  clearDimensionsOnPerhiasanChange,
+  clearDimensionsOnTipeGelangChange,
+  EMPTY_INVENTORY_DIMENSIONS,
+  inventoryDimensionsFromRow,
+  validateInventoryDimensions,
+} from '@/lib/inventory-extra-fields'
 import { KADAR_K_OPTIONS } from '@/lib/utils'
 import Image from 'next/image'
 import { useRoutePermissionGuard } from '@/app/dashboard/dashboard-auth-context'
@@ -32,6 +41,7 @@ export default function EditInventoryPage({ params }: { params: Promise<{ seri: 
     keterangan: '',
     warna: '',
     fyen: '',
+    ...EMPTY_INVENTORY_DIMENSIONS,
   })
   
   const [existingImages, setExistingImages] = useState<string[]>([])
@@ -54,13 +64,13 @@ export default function EditInventoryPage({ params }: { params: Promise<{ seri: 
         seri: item.seri,
         tanggal: item.tanggal,
         jenis: item.jenis,
-        perhiasan: item.perhiasan,
         model: item.model,
         berat: String(item.berat),
         harga: String(item.harga),
         keterangan: item.keterangan || '',
         warna: normalizeWarnaForSelect(item.warna || ''),
         fyen: item.fyen || '',
+        ...inventoryDimensionsFromRow(item),
       })
 
       if (item.images && item.images.length > 0) {
@@ -108,14 +118,26 @@ export default function EditInventoryPage({ params }: { params: Promise<{ seri: 
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    setFormData(prev => ({
-      ...prev,
-      [e.target.name]: e.target.value
-    }))
+    const { name, value } = e.target
+    setFormData((prev) => {
+      if (name === 'perhiasan') {
+        return { ...prev, ...clearDimensionsOnPerhiasanChange(value) }
+      }
+      if (name === 'tipe_gelang') {
+        return { ...prev, ...clearDimensionsOnTipeGelangChange(value) }
+      }
+      return { ...prev, [name]: value }
+    })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    const dimErr = validateInventoryDimensions(formData)
+    if (dimErr) {
+      alert(dimErr)
+      return
+    }
+
     setSaving(true)
 
     try {
@@ -176,7 +198,8 @@ export default function EditInventoryPage({ params }: { params: Promise<{ seri: 
           harga: parseFloat(formData.harga),
           keterangan: formData.keterangan || null,
           images: allImages.length > 0 ? allImages : null,
-          warna: formData.warna || null
+          warna: formData.warna || null,
+          ...buildInventoryDimensionPayload(formData),
         })
         .eq('seri', seri)
 
@@ -305,6 +328,16 @@ export default function EditInventoryPage({ params }: { params: Promise<{ seri: 
               ))}
             </select>
           </div>
+
+          <InventoryExtraFields
+            kode_pabrik={formData.kode_pabrik}
+            perhiasan={formData.perhiasan}
+            ring_cm={formData.ring_cm}
+            panjang_cm={formData.panjang_cm}
+            tipe_gelang={formData.tipe_gelang}
+            diameter_cm={formData.diameter_cm}
+            onChange={handleChange}
+          />
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">

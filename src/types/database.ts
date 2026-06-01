@@ -165,6 +165,11 @@ export interface Database {
           perhiasan: string
           model: string
           fyen: string | null
+          kode_pabrik: string | null
+          ring_cm: number | null
+          panjang_cm: number | null
+          tipe_gelang: string | null
+          diameter_cm: number | null
           berat: number
           harga: number
           status: string
@@ -183,6 +188,11 @@ export interface Database {
           perhiasan: string
           model: string
           fyen?: string | null
+          kode_pabrik?: string | null
+          ring_cm?: number | null
+          panjang_cm?: number | null
+          tipe_gelang?: string | null
+          diameter_cm?: number | null
           berat: number
           harga: number
           status?: string
@@ -201,6 +211,11 @@ export interface Database {
           perhiasan?: string
           model?: string
           fyen?: string | null
+          kode_pabrik?: string | null
+          ring_cm?: number | null
+          panjang_cm?: number | null
+          tipe_gelang?: string | null
+          diameter_cm?: number | null
           berat?: number
           harga?: number
           status?: string
