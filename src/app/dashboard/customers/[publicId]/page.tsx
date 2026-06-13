@@ -8,8 +8,9 @@ import { ArrowLeft, Award, Download, Edit, ShoppingBag, TrendingUp } from 'lucid
 import { customerPublicIdPath, normalizePublicIdInput } from '@/lib/customers/public-id'
 import { downloadCustomerCardPng } from '@/lib/customers/customer-card-download'
 import { formatCurrency, formatWeight } from '@/lib/utils'
+import { buildPointHistory, computeAvailablePoints } from '@/lib/customers/points'
 import { useDashboardAuth, useRoutePermissionGuard } from '@/app/dashboard/dashboard-auth-context'
-import type { Customer, CustomerPointLedger } from '@/types/database'
+import type { Customer, CustomerPointLedger, CustomerPointRedeem } from '@/types/database'
 
 type SaleRow = {
   no: string
@@ -35,6 +36,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ publi
 
   const [customer, setCustomer] = useState<Customer | null>(null)
   const [ledger, setLedger] = useState<CustomerPointLedger[]>([])
+  const [redeems, setRedeems] = useState<CustomerPointRedeem[]>([])
   const [sales, setSales] = useState<SaleRow[]>([])
   const [purchases, setPurchases] = useState<PurchaseRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -62,9 +64,14 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ publi
         }
         setCustomer(c)
 
-        const [lRes, sRes, pRes] = await Promise.all([
+        const [lRes, rRes, sRes, pRes] = await Promise.all([
           supabase
             .from('customer_point_ledger')
+            .select('*')
+            .eq('customer_id', c.customer_id)
+            .order('created_at', { ascending: false }),
+          supabase
+            .from('customer_point_redeem')
             .select('*')
             .eq('customer_id', c.customer_id)
             .order('created_at', { ascending: false }),
@@ -81,10 +88,12 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ publi
         ])
 
         if (lRes.error) throw lRes.error
+        if (rRes.error) throw rRes.error
         if (sRes.error) throw sRes.error
         if (pRes.error) throw pRes.error
 
         setLedger(lRes.data ?? [])
+        setRedeems(rRes.data ?? [])
         setSales(sRes.data ?? [])
         setPurchases(pRes.data ?? [])
       } catch (e) {
@@ -101,12 +110,13 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ publi
 
   const now = useMemo(() => new Date(), [])
 
-  const activePoints = useMemo(() => {
-    return ledger.reduce((sum, row) => {
-      if (new Date(row.expires_at) > now) return sum + row.points
-      return sum
-    }, 0)
-  }, [ledger, now])
+  const availablePoints = useMemo(() => {
+    return computeAvailablePoints(ledger, redeems, now)
+  }, [ledger, redeems, now])
+
+  const pointHistory = useMemo(() => {
+    return buildPointHistory(ledger, redeems, now)
+  }, [ledger, redeems, now])
 
   if (loading) {
     return (
@@ -172,9 +182,9 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ publi
             <Award className="h-6 w-6" />
             <h2 className="text-lg font-semibold">Saldo poin aktif</h2>
           </div>
-          <p className="mt-2 text-4xl font-bold text-amber-700">{activePoints}</p>
+          <p className="mt-2 text-4xl font-bold text-amber-700">{availablePoints}</p>
           <p className="mt-1 text-sm text-gray-600">
-            Hanya entri jurnal yang masa berlaku belum lewat (dari penjualan ke pelanggan, 1 poin per gram).
+            Poin aktif dikurangi total redeem. Poin dari penjualan kedaluwarsa setelah 1 tahun.
           </p>
         </div>
 
@@ -209,50 +219,89 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ publi
             <thead className="border-b bg-gray-50 text-left text-xs uppercase text-gray-600">
               <tr>
                 <th className="px-3 py-2">Tanggal</th>
+                <th className="px-3 py-2">Jenis</th>
                 <th className="px-3 py-2">Poin</th>
-                <th className="px-3 py-2">Berat (ref.)</th>
-                <th className="px-3 py-2">Ref</th>
-                <th className="px-3 py-2">Kedaluwarsa</th>
+                <th className="px-3 py-2">Detail</th>
+                <th className="px-3 py-2">Keterangan</th>
               </tr>
             </thead>
             <tbody className="divide-y">
-              {ledger.length === 0 ? (
+              {pointHistory.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-3 py-6 text-center text-gray-500">
-                    Belum ada poin
+                    Belum ada riwayat poin
                   </td>
                 </tr>
               ) : (
-                ledger.map((row) => {
-                  const expired = new Date(row.expires_at) <= now
+                pointHistory.map((row) => {
+                  const isRedeem = row.kind === 'redeem'
+                  const isExpired = row.kind === 'expired'
                   return (
-                    <tr key={row.ledger_id} className={expired ? 'text-gray-400' : ''}>
+                    <tr
+                      key={row.id}
+                      className={isExpired ? 'text-gray-400' : isRedeem ? 'bg-red-50/40' : ''}
+                    >
                       <td className="px-3 py-2 whitespace-nowrap">
-                        {new Date(row.created_at).toLocaleDateString('id-ID')}
+                        {new Date(row.date).toLocaleString('id-ID')}
                       </td>
-                      <td className="px-3 py-2 font-medium">{row.points}</td>
-                      <td className="px-3 py-2">{formatWeight(Number(row.weight_grams))}</td>
                       <td className="px-3 py-2">
-                        {row.ref_type === 'penjualan' ? (
-                          <Link
-                            href={`/dashboard/sales/${row.ref_key}`}
-                            className="text-amber-700 hover:underline"
-                          >
-                            {row.ref_key}
-                          </Link>
-                        ) : (
-                          <span>
-                            {row.ref_type} / {row.ref_key}
+                        {row.kind === 'earn' && (
+                          <span className="rounded bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+                            Dapat poin
+                          </span>
+                        )}
+                        {row.kind === 'redeem' && (
+                          <span className="rounded bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800">
+                            Redeem
+                          </span>
+                        )}
+                        {row.kind === 'expired' && (
+                          <span className="rounded bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-700">
+                            Kedaluwarsa
                           </span>
                         )}
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap">
-                        {new Date(row.expires_at).toLocaleDateString('id-ID')}
-                        {expired && (
-                          <span className="ml-2 rounded bg-gray-200 px-1.5 py-0.5 text-xs text-gray-700">
-                            kedaluwarsa
+                      <td className="px-3 py-2 font-medium">
+                        {isRedeem ? (
+                          <span className="text-red-600">−{row.points}</span>
+                        ) : (
+                          <span className={isExpired ? '' : 'text-green-700'}>+{row.points}</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2">
+                        {row.kind === 'earn' || row.kind === 'expired' ? (
+                          <div className="space-y-0.5">
+                            {row.refType === 'penjualan' && row.refKey ? (
+                              <Link
+                                href={`/dashboard/sales/${row.refKey}`}
+                                className="text-amber-700 hover:underline"
+                              >
+                                {row.refKey}
+                              </Link>
+                            ) : (
+                              <span>
+                                {row.refType} / {row.refKey}
+                              </span>
+                            )}
+                            {row.weightGrams != null && row.weightGrams > 0 && (
+                              <p className="text-xs text-gray-500">
+                                Berat: {formatWeight(row.weightGrams)}
+                              </p>
+                            )}
+                            {row.expiresAt && (
+                              <p className="text-xs text-gray-500">
+                                Kedaluwarsa: {new Date(row.expiresAt).toLocaleDateString('id-ID')}
+                              </p>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-500">
+                            Oleh: {row.createdByNama?.trim() || '—'}
                           </span>
                         )}
+                      </td>
+                      <td className="px-3 py-2 text-gray-700">
+                        {row.keterangan?.trim() || '—'}
                       </td>
                     </tr>
                   )

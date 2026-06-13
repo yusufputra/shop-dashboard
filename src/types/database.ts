@@ -157,6 +157,35 @@ export interface Database {
           expires_at?: string
         }
       }
+      customer_point_redeem: {
+        Row: {
+          redeem_id: string
+          customer_id: string
+          points: number
+          keterangan: string | null
+          created_by: string | null
+          created_by_nama: string | null
+          created_at: string
+        }
+        Insert: {
+          redeem_id?: string
+          customer_id: string
+          points: number
+          keterangan?: string | null
+          created_by?: string | null
+          created_by_nama?: string | null
+          created_at?: string
+        }
+        Update: {
+          redeem_id?: string
+          customer_id?: string
+          points?: number
+          keterangan?: string | null
+          created_by?: string | null
+          created_by_nama?: string | null
+          created_at?: string
+        }
+      }
       stok_perhiasan: {
         Row: {
           seri: string
@@ -383,6 +412,7 @@ export type PenjualanPerhiasan = Database['public']['Tables']['penjualan_perhias
 export type Login = Database['public']['Tables']['login']['Row']
 export type Customer = Database['public']['Tables']['customers']['Row']
 export type CustomerPointLedger = Database['public']['Tables']['customer_point_ledger']['Row']
+export type CustomerPointRedeem = Database['public']['Tables']['customer_point_redeem']['Row']
 
 export interface GoldStandard {
   karat: number

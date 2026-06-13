@@ -1,4 +1,6 @@
 -- Create penjualan_perhiasan table for tracking sales to customers
+-- Fresh install: sudah termasuk di schema.sql
+-- Database lama: jalankan file ini saja jika tabel penjualan belum ada
 CREATE TABLE IF NOT EXISTS penjualan_perhiasan (
   no VARCHAR(50) PRIMARY KEY DEFAULT ('SALE-' || EXTRACT(EPOCH FROM NOW())::TEXT),
   tanggal DATE NOT NULL DEFAULT CURRENT_DATE,

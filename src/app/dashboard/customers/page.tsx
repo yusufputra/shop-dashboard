@@ -5,8 +5,9 @@ import Link from 'next/link'
 import { Plus } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { customerPublicIdPath } from '@/lib/customers/public-id'
+import { computeAvailablePoints } from '@/lib/customers/points'
 import { useDashboardAuth, useRoutePermissionGuard } from '@/app/dashboard/dashboard-auth-context'
-import type { Customer, CustomerPointLedger } from '@/types/database'
+import type { Customer, CustomerPointLedger, CustomerPointRedeem } from '@/types/database'
 
 export default function CustomersPage() {
   useRoutePermissionGuard('customers', 'read')
@@ -14,20 +15,24 @@ export default function CustomersPage() {
   const supabase = useMemo(() => createClient(), [])
   const [customers, setCustomers] = useState<Customer[]>([])
   const [ledgerRows, setLedgerRows] = useState<CustomerPointLedger[]>([])
+  const [redeemRows, setRedeemRows] = useState<CustomerPointRedeem[]>([])
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
       const nowIso = new Date().toISOString()
-      const [cRes, lRes] = await Promise.all([
+      const [cRes, lRes, rRes] = await Promise.all([
         supabase.from('customers').select('*').order('nama'),
         supabase.from('customer_point_ledger').select('*').gt('expires_at', nowIso),
+        supabase.from('customer_point_redeem').select('*'),
       ])
       if (cRes.error) throw cRes.error
       if (lRes.error) throw lRes.error
+      if (rRes.error) throw rRes.error
       setCustomers(cRes.data ?? [])
       setLedgerRows(lRes.data ?? [])
+      setRedeemRows(rRes.data ?? [])
     } catch (e) {
       console.error(e)
       alert('Gagal memuat data pelanggan')
@@ -41,12 +46,32 @@ export default function CustomersPage() {
   }, [load])
 
   const activePointsByCustomer = useMemo(() => {
-    const m = new Map<string, number>()
+    const ledgerByCustomer = new Map<string, CustomerPointLedger[]>()
+    const redeemByCustomer = new Map<string, CustomerPointRedeem[]>()
+
     for (const row of ledgerRows) {
-      m.set(row.customer_id, (m.get(row.customer_id) ?? 0) + row.points)
+      const list = ledgerByCustomer.get(row.customer_id) ?? []
+      list.push(row)
+      ledgerByCustomer.set(row.customer_id, list)
+    }
+    for (const row of redeemRows) {
+      const list = redeemByCustomer.get(row.customer_id) ?? []
+      list.push(row)
+      redeemByCustomer.set(row.customer_id, list)
+    }
+
+    const m = new Map<string, number>()
+    for (const c of customers) {
+      m.set(
+        c.customer_id,
+        computeAvailablePoints(
+          ledgerByCustomer.get(c.customer_id) ?? [],
+          redeemByCustomer.get(c.customer_id) ?? []
+        )
+      )
     }
     return m
-  }, [ledgerRows])
+  }, [customers, ledgerRows, redeemRows])
 
   if (loading) {
     return (
@@ -62,19 +87,28 @@ export default function CustomersPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Pelanggan & poin</h1>
           <p className="text-gray-600">
-            Nomor pelanggan unik per orang. Poin aktif = jumlah entri jurnal yang belum kedaluwarsa (1 tahun per
-            penjualan).
+            Nomor pelanggan unik per orang. Poin aktif = jurnal belum kedaluwarsa dikurangi total redeem.
           </p>
         </div>
-        {can('customers', 'create') && (
-          <Link
-            href="/dashboard/customers/new"
-            className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-amber-500 to-yellow-500 px-4 py-2 text-white shadow-md transition-all hover:from-amber-600 hover:to-yellow-600"
-          >
-            <Plus className="h-5 w-5" />
-            <span>Tambah pelanggan</span>
-          </Link>
-        )}
+        <div className="flex flex-wrap gap-2">
+          {can('point_redeem', 'read') && (
+            <Link
+              href="/dashboard/customers/redeem"
+              className="inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-white px-4 py-2 text-amber-800 shadow-sm transition-all hover:bg-amber-50"
+            >
+              <span>Redeem poin</span>
+            </Link>
+          )}
+          {can('customers', 'create') && (
+            <Link
+              href="/dashboard/customers/new"
+              className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-amber-500 to-yellow-500 px-4 py-2 text-white shadow-md transition-all hover:from-amber-600 hover:to-yellow-600"
+            >
+              <Plus className="h-5 w-5" />
+              <span>Tambah pelanggan</span>
+            </Link>
+          )}
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-md">

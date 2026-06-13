@@ -31,27 +31,48 @@ This guide wires a new Supabase project to this app: **PostgreSQL schema / RLS**
 
 ## 3. Database
 
-Run scripts in the Supabase **SQL Editor** (**SQL → New query**) in the order below. Each time: paste the file contents, run once, confirm success.
+### Instal baru (fresh)
 
-| Order | File | Purpose |
-| ----- | ---- | ------- |
-| 1 | [`supabase/schema.sql`](../supabase/schema.sql) | Core tables (`stok_perhiasan`, `pembelian_perhiasan`, `pesanan_perhiasan`, `login`), indexes, RLS |
-| 2 | [`supabase/create_penjualan_table.sql`](../supabase/create_penjualan_table.sql) | Sales table `penjualan_perhiasan` (requires `stok_perhiasan`) |
-| — | [`supabase/fix_dashboard_anon_rls.sql`](../supabase/fix_dashboard_anon_rls.sql) | **Wajib untuk DB lama:** perbaiki RLS jika create/update gagal (42501) |
-| 3 | [`supabase/add_images_column.sql`](../supabase/add_images_column.sql) | `images` JSONB column on inventory |
-| 4 | [`supabase/add_warna_column.sql`](../supabase/add_warna_column.sql) | `warna` column on inventory |
-| 5 | [`supabase/add_biaya_column_to_penjualan.sql`](../supabase/add_biaya_column_to_penjualan.sql) | Optional cost field on sales |
+Jalankan **satu file** di Supabase **SQL Editor** (**SQL → New query**):
 
-**Existing databases only:** If you created the project before these columns existed, you can also run [`supabase/migration_add_stock_status.sql`](../supabase/migration_add_stock_status.sql) (see [`MIGRATION_GUIDE.md`](../MIGRATION_GUIDE.md)). On a **fresh** install, `schema.sql` already includes `status` and `pembelian_seri` on `stok_perhiasan`, so that migration is optional.
+| File | Purpose |
+| ---- | ------- |
+| [`supabase/schema.sql`](../supabase/schema.sql) | **Semua tabel** — login/RBAC, stok, pembelian, pesanan, penjualan, pelanggan, poin, redeem, indexes, RLS, seed grup Administrator |
+
+Lalu jalankan storage (section 4.2):
+
+| File | Purpose |
+| ---- | ------- |
+| [`supabase/setup_storage_policies.sql`](../supabase/setup_storage_policies.sql) | Bucket `jewelry-images` + policy upload foto stok |
+
+Buat user pertama di tabel `login` (password bcrypt); assign ke grup Administrator jika perlu.
+
+### Database lama (upgrade incremental)
+
+Jika project Supabase sudah ada sebelum perubahan schema, jalankan **hanya** file migrasi yang belum pernah di-run — jangan run ulang `schema.sql` penuh. Contoh:
+
+| File | Kapan dijalankan |
+| ---- | ---------------- |
+| [`supabase/rbac_schema.sql`](../supabase/rbac_schema.sql) | Belum punya RBAC / user_groups |
+| [`supabase/customers_loyalty.sql`](../supabase/customers_loyalty.sql) | Belum punya pelanggan & ledger poin |
+| [`supabase/customer_point_redeem.sql`](../supabase/customer_point_redeem.sql) | Belum punya tabel redeem poin |
+| [`supabase/add_point_redeem_menu.sql`](../supabase/add_point_redeem_menu.sql) | Belum punya menu RBAC `point_redeem` |
+| [`supabase/create_penjualan_table.sql`](../supabase/create_penjualan_table.sql) | Belum punya penjualan |
+| [`supabase/add_images_column.sql`](../supabase/add_images_column.sql) | Kolom `images` belum ada |
+| [`supabase/add_warna_column.sql`](../supabase/add_warna_column.sql) | Kolom `warna` belum ada |
+| [`supabase/add_biaya_column_to_penjualan.sql`](../supabase/add_biaya_column_to_penjualan.sql) | Kolom `biaya` belum ada |
+| [`supabase/fix_dashboard_anon_rls.sql`](../supabase/fix_dashboard_anon_rls.sql) | Error 42501 saat create/update dari dashboard |
+
+Lihat [`MIGRATION_GUIDE.md`](../MIGRATION_GUIDE.md) untuk migrasi stok lama (`status`, `pembelian_seri`).
 
 ### Dashboard login & RLS
 
 Login memakai tabel **`login`** + cookie JWT (bukan Supabase Auth). Query dari browser memakai **`anon` key**, jadi policy RLS harus mengizinkan role **`anon`** (bukan hanya `authenticated`).
 
-- **Instal baru:** `schema.sql` + `create_penjualan_table.sql` sudah memakai policy `Dashboard anon authenticated all`.
+- **Instal baru:** cukup `schema.sql` (sudah termasuk policy `Dashboard anon authenticated all` untuk semua tabel dashboard).
 - **Database lama** (hanya policy `authenticated`): jalankan [`supabase/fix_dashboard_anon_rls.sql`](../supabase/fix_dashboard_anon_rls.sql) sekali di SQL Editor.
 
-Tabel yang dibuka untuk dashboard: `stok_perhiasan`, `pembelian_perhiasan`, `pesanan_perhiasan`, `penjualan_perhiasan`, `customers`, `customer_point_ledger`. Tabel `login` / RBAC hanya lewat **service role** di API server ([`secure_login_rls.sql`](../supabase/secure_login_rls.sql)).
+Tabel yang dibuka untuk dashboard: `stok_perhiasan`, `pembelian_perhiasan`, `pesanan_perhiasan`, `penjualan_perhiasan`, `customers`, `customer_point_ledger`, `customer_point_redeem`. Tabel `login` / RBAC hanya lewat **service role** di API server (RLS login tanpa policy anon — sudah ada di `schema.sql`).
 
 Buat user pertama di tabel `login` (atau seed dari migrasi RBAC); gunakan email/nama + password di `/login`.
 

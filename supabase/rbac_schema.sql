@@ -1,5 +1,6 @@
 -- RBAC: grup pengguna + izin per menu (CRUD)
--- Jalankan setelah add_email_to_login / schema login yang ada.
+-- Fresh install: sudah termasuk di schema.sql
+-- Database lama: jalankan file ini saja jika belum punya RBAC
 
 CREATE TABLE IF NOT EXISTS user_groups (
   group_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -41,7 +42,8 @@ INSERT INTO group_menu_permissions (group_id, menu_key, can_read, can_create, ca
   ('a0000000-0000-0000-0000-000000000001', 'calculator', TRUE, TRUE, TRUE, TRUE),
   ('a0000000-0000-0000-0000-000000000001', 'users', TRUE, TRUE, TRUE, TRUE),
   ('a0000000-0000-0000-0000-000000000001', 'user_groups', TRUE, TRUE, TRUE, TRUE),
-  ('a0000000-0000-0000-0000-000000000001', 'customers', TRUE, TRUE, TRUE, TRUE)
+  ('a0000000-0000-0000-0000-000000000001', 'customers', TRUE, TRUE, TRUE, TRUE),
+  ('a0000000-0000-0000-0000-000000000001', 'point_redeem', TRUE, TRUE, TRUE, TRUE)
 ON CONFLICT (group_id, menu_key) DO UPDATE SET
   can_read = EXCLUDED.can_read,
   can_create = EXCLUDED.can_create,

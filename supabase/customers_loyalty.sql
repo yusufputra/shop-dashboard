@@ -1,5 +1,6 @@
 -- Pelanggan (nomor/ID publik unik), poin dari penjualan (1 poin / gram), kedaluwarsa 1 tahun.
--- Opsional: tautkan penjualan & pembelian ke pelanggan.
+-- Fresh install: sudah termasuk di schema.sql
+-- Database lama: jalankan file ini saja jika belum punya tabel pelanggan/poin
 
 CREATE TABLE IF NOT EXISTS customers (
   customer_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

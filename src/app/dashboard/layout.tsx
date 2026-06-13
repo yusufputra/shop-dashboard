@@ -18,6 +18,7 @@ import {
   UsersRound,
   Award,
   type LucideIcon,
+  MinusCircle,
   Gem,
 } from 'lucide-react'
 import { useState } from 'react'
@@ -42,6 +43,7 @@ const navigation: {
   { name: 'Pengguna', href: '/dashboard/users', icon: Users, menuKey: 'users' },
   { name: 'Grup pengguna', href: '/dashboard/user-groups', icon: UsersRound, menuKey: 'user_groups' },
   { name: 'Pelanggan', href: '/dashboard/customers', icon: Award, menuKey: 'customers' },
+  { name: 'Redeem Poin', href: '/dashboard/customers/redeem', icon: MinusCircle, menuKey: 'point_redeem' },
 ]
 
 function DashboardShell({ children }: { children: React.ReactNode }) {
