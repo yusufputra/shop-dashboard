@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Plus } from 'lucide-react'
+import { Plus, Search } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { customerPublicIdPath } from '@/lib/customers/public-id'
 import { computeAvailablePoints } from '@/lib/customers/points'
@@ -17,6 +17,7 @@ export default function CustomersPage() {
   const [ledgerRows, setLedgerRows] = useState<CustomerPointLedger[]>([])
   const [redeemRows, setRedeemRows] = useState<CustomerPointRedeem[]>([])
   const [loading, setLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -73,6 +74,17 @@ export default function CustomersPage() {
     return m
   }, [customers, ledgerRows, redeemRows])
 
+  const filteredCustomers = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase()
+    if (!q) return customers
+    return customers.filter(
+      (c) =>
+        c.nama.toLowerCase().includes(q) ||
+        String(c.public_id).toLowerCase().includes(q) ||
+        (c.phone ?? '').toLowerCase().includes(q)
+    )
+  }, [customers, searchTerm])
+
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -111,6 +123,19 @@ export default function CustomersPage() {
         </div>
       </div>
 
+      <div className="rounded-xl bg-white p-4 shadow-md">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Cari berdasarkan nama, nomor pelanggan, atau telepon..."
+            className="w-full rounded-lg border border-gray-300 py-3 pl-10 pr-4 text-black outline-none focus:border-transparent focus:ring-2 focus:ring-amber-500"
+          />
+        </div>
+      </div>
+
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-md">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -137,8 +162,14 @@ export default function CustomersPage() {
                     Belum ada pelanggan. {can('customers', 'create') ? 'Klik Tambah pelanggan.' : ''}
                   </td>
                 </tr>
+              ) : filteredCustomers.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
+                    Tidak ada pelanggan yang cocok dengan pencarian.
+                  </td>
+                </tr>
               ) : (
-                customers.map((c) => {
+                filteredCustomers.map((c) => {
                   const pid = String(c.public_id)
                   const pts = activePointsByCustomer.get(c.customer_id) ?? 0
                   return (
