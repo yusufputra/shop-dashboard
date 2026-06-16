@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useDashboardAuth } from '@/app/dashboard/dashboard-auth-context'
 import { TrendingUp, Package, ShoppingCart, ClipboardList, DollarSign, Download, Calendar } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
+import { warnaLabel } from '@/lib/warna-options'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts'
 import * as XLSX from 'xlsx'
 
@@ -33,6 +34,48 @@ interface RecapData {
   jumlah: number
 }
 
+interface ExportRow {
+  tanggal: string
+  tipe: string
+  nomorTransaksi: string
+  nomorPelanggan: string
+  nikPelanggan: string
+  alamatPelanggan: string
+  noHpPelanggan: string
+  perhiasan: string
+  kodeBarang: string
+  model: string
+  kodePabrik: string
+  warna: string
+  kadar: string
+  berat: number | null
+  ongkos: number | null
+  jumlahHarga: number
+}
+
+type CustomerJoin = {
+  public_id: string
+  nik: string | null
+  alamat: string | null
+  phone: string | null
+} | null
+
+function customerExportFields(
+  customer: CustomerJoin,
+  fallback: { alamat?: string; phone?: string | null }
+) {
+  return {
+    nomorPelanggan: customer?.public_id ?? '',
+    nikPelanggan: customer?.nik ?? '',
+    alamatPelanggan: customer?.alamat ?? fallback.alamat ?? '',
+    noHpPelanggan: customer?.phone ?? fallback.phone ?? '',
+  }
+}
+
+function formatKadarFromPurchase(kadar: number | null): string {
+  return kadar != null ? `${kadar}K` : ''
+}
+
 export default function DashboardPage() {
   const { can, ready: authReady } = useDashboardAuth()
   const [stats, setStats] = useState<Stats>({
@@ -49,6 +92,7 @@ export default function DashboardPage() {
   const [selectedMonth, setSelectedMonth] = useState('')
   const [selectedYear, setSelectedYear] = useState('')
   const [recapData, setRecapData] = useState<RecapData[]>([])
+  const [exportRows, setExportRows] = useState<ExportRow[]>([])
   const supabase = createClient()
 
   const loadMonthlyData = useCallback(async () => {
@@ -130,9 +174,19 @@ export default function DashboardPage() {
 
       const [inventory, purchases, orders, sales] = await Promise.all([
         supabase.from('stok_perhiasan').select('*', { count: 'exact' }),
-        supabase.from('pembelian_perhiasan').select('*').match(dateFilter),
+        supabase
+          .from('pembelian_perhiasan')
+          .select('*, customers ( public_id, nik, alamat, phone )')
+          .match(dateFilter),
         supabase.from('pesanan_perhiasan').select('*').match(dateFilter),
-        supabase.from('penjualan_perhiasan').select('*').match(dateFilter)
+        supabase
+          .from('penjualan_perhiasan')
+          .select(`
+            *,
+            customers ( public_id, nik, alamat, phone ),
+            stok_perhiasan ( seri, perhiasan, jenis, model, kode_pabrik, warna, berat )
+          `)
+          .match(dateFilter)
       ])
 
       // Calculate total revenue from sales + custom orders
@@ -187,6 +241,89 @@ export default function DashboardPage() {
       recap.sort((a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime())
       setRecapData(recap)
 
+      const purchaseSeris = purchases.data?.map(p => p.seri) ?? []
+      const relatedStockByPurchase = new Map<string, {
+        seri: string
+        kode_pabrik: string | null
+        warna: string | null
+        jenis: string
+      }>()
+
+      if (purchaseSeris.length > 0) {
+        const { data: relatedStock } = await supabase
+          .from('stok_perhiasan')
+          .select('seri, pembelian_seri, kode_pabrik, warna, jenis')
+          .in('pembelian_seri', purchaseSeris)
+
+        relatedStock?.forEach(item => {
+          if (item.pembelian_seri) {
+            relatedStockByPurchase.set(item.pembelian_seri, item)
+          }
+        })
+      }
+
+      const rows: ExportRow[] = []
+
+      sales.data?.forEach(sale => {
+        const customer = (sale.customers as CustomerJoin) ?? null
+        const stok = sale.stok_perhiasan as {
+          seri: string
+          perhiasan: string
+          jenis: string
+          model: string
+          kode_pabrik: string | null
+          warna: string | null
+          berat: number
+        } | null
+        const customerInfo = customerExportFields(customer, {
+          alamat: sale.alamat,
+          phone: sale.no_telp,
+        })
+
+        rows.push({
+          tanggal: sale.tanggal,
+          tipe: 'Penjualan',
+          nomorTransaksi: sale.no,
+          ...customerInfo,
+          perhiasan: stok?.perhiasan ?? '',
+          kodeBarang: stok?.seri ?? sale.stok_seri,
+          model: stok?.model ?? '',
+          kodePabrik: stok?.kode_pabrik?.trim() ?? '',
+          warna: stok?.warna ? warnaLabel(stok.warna) : '',
+          kadar: stok?.jenis ?? '',
+          berat: stok?.berat ?? null,
+          ongkos: sale.biaya != null ? Number(sale.biaya) : null,
+          jumlahHarga: Number(sale.harga_jual),
+        })
+      })
+
+      purchases.data?.forEach(purchase => {
+        const customer = (purchase.customers as CustomerJoin) ?? null
+        const relatedStock = relatedStockByPurchase.get(purchase.seri)
+        const customerInfo = customerExportFields(customer, {
+          alamat: purchase.alamat,
+        })
+
+        rows.push({
+          tanggal: purchase.tanggal,
+          tipe: 'Pembelian',
+          nomorTransaksi: purchase.seri,
+          ...customerInfo,
+          perhiasan: purchase.perhiasan,
+          kodeBarang: relatedStock?.seri ?? '',
+          model: purchase.model,
+          kodePabrik: relatedStock?.kode_pabrik?.trim() ?? '',
+          warna: relatedStock?.warna ? warnaLabel(relatedStock.warna) : '',
+          kadar: relatedStock?.jenis ?? formatKadarFromPurchase(purchase.kadar),
+          berat: Number(purchase.berat),
+          ongkos: null,
+          jumlahHarga: Number(purchase.harga),
+        })
+      })
+
+      rows.sort((a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime())
+      setExportRows(rows)
+
       // Load monthly data
       await loadMonthlyData()
     } catch (error) {
@@ -201,22 +338,32 @@ export default function DashboardPage() {
   }, [loadStatsAndData])
 
   const exportToExcel = () => {
-    // Prepare data for export
-    const exportData = recapData.map(item => ({
-      'Tanggal': new Date(item.tanggal).toLocaleDateString('id-ID'),
-      'Tipe': item.tipe,
-      'Deskripsi': item.deskripsi,
-      'Jumlah': item.jumlah
+    const exportData = exportRows.map(row => ({
+      'Tanggal': new Date(row.tanggal).toLocaleDateString('id-ID'),
+      'Tipe': row.tipe,
+      'Nomor Transaksi': row.nomorTransaksi,
+      'Nomor Pelanggan': row.nomorPelanggan,
+      'NIK Pelanggan': row.nikPelanggan,
+      'Alamat Pelanggan': row.alamatPelanggan,
+      'No. Hp Pelanggan': row.noHpPelanggan,
+      'Perhiasan': row.perhiasan,
+      'Kode Barang': row.kodeBarang,
+      'Model': row.model,
+      'Kode Pabrik': row.kodePabrik,
+      'Warna': row.warna,
+      'Kadar': row.kadar,
+      'Berat': row.berat,
+      'Ongkos': row.ongkos,
+      'Jumlah Harga': row.jumlahHarga,
     }))
 
-    // Add summary
     const summary = [
       {},
       { 'Tanggal': 'RINGKASAN' },
-      { 'Tanggal': 'Total Pendapatan', 'Jumlah': stats.totalRevenue },
-      { 'Tanggal': 'Total Pembelian', 'Jumlah': stats.totalPurchaseAmount },
-      { 'Tanggal': 'Total Pesanan', 'Jumlah': stats.totalOrders },
-      { 'Tanggal': 'Total Stok', 'Jumlah': stats.totalInventory }
+      { 'Tanggal': 'Total Pendapatan', 'Jumlah Harga': stats.totalRevenue },
+      { 'Tanggal': 'Total Pembelian', 'Jumlah Harga': stats.totalPurchaseAmount },
+      { 'Tanggal': 'Total Pesanan', 'Jumlah Harga': stats.totalOrders },
+      { 'Tanggal': 'Total Stok', 'Jumlah Harga': stats.totalInventory },
     ]
 
     const fullData = [...exportData, ...summary]
