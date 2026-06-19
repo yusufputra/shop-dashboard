@@ -3,7 +3,10 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 export type CustomerLookupRow = {
   customer_id: string
   nama: string
+  nik: string | null
   phone: string | null
+  alamat: string | null
+  email: string | null
 }
 
 export async function fetchCustomerByPublicId(
@@ -14,14 +17,17 @@ export async function fetchCustomerByPublicId(
   if (!public_id) return null
   const { data } = await supabase
     .from('customers')
-    .select('customer_id, nama, phone')
+    .select('customer_id, nama, nik, phone, alamat, email')
     .eq('public_id', public_id)
     .maybeSingle()
   if (!data) return null
   return {
     customer_id: data.customer_id,
     nama: data.nama,
+    nik: data.nik ?? null,
     phone: data.phone ?? null,
+    alamat: data.alamat ?? null,
+    email: data.email ?? null,
   }
 }
 

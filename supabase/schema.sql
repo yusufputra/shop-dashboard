@@ -200,6 +200,29 @@ COMMENT ON COLUMN penjualan_perhiasan.biaya IS 'Biaya tambahan untuk penjualan (
 COMMENT ON COLUMN penjualan_perhiasan.created_by IS 'user_id dari tabel login (sesi saat insert)';
 COMMENT ON COLUMN penjualan_perhiasan.created_by_nama IS 'Nama pengguna saat data dibuat';
 
+CREATE TABLE IF NOT EXISTS gadai_perhiasan (
+  no_invoice VARCHAR(50) PRIMARY KEY DEFAULT ('GAD-' || EXTRACT(EPOCH FROM NOW())::TEXT),
+  customer_id UUID REFERENCES customers(customer_id) ON DELETE SET NULL,
+  nama VARCHAR(255) NOT NULL,
+  nik VARCHAR(32),
+  perhiasan VARCHAR(100) NOT NULL,
+  model VARCHAR(100) NOT NULL,
+  kadar SMALLINT,
+  berat DECIMAL(10, 2) NOT NULL,
+  harga_barang DECIMAL(15, 2) NOT NULL,
+  uang_dipinjam DECIMAL(15, 2) NOT NULL,
+  tgl_peminjaman DATE NOT NULL DEFAULT CURRENT_DATE,
+  tgl_pelunasan DATE,
+  foto_pelunasan TEXT,
+  created_by UUID REFERENCES login(user_id) ON DELETE SET NULL,
+  created_by_nama VARCHAR(255),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+COMMENT ON COLUMN gadai_perhiasan.customer_id IS 'Member ID pelanggan (opsional, FK customers)';
+COMMENT ON COLUMN gadai_perhiasan.nik IS 'Nomor Induk Kependudukan';
+COMMENT ON COLUMN gadai_perhiasan.foto_pelunasan IS 'URL foto bukti pelunasan';
+
 -- -----------------------------------------------------------------------------
 -- 4. Indexes
 -- -----------------------------------------------------------------------------
@@ -217,6 +240,10 @@ CREATE INDEX IF NOT EXISTS idx_penjualan_tanggal ON penjualan_perhiasan(tanggal 
 CREATE INDEX IF NOT EXISTS idx_penjualan_stok_seri ON penjualan_perhiasan(stok_seri);
 CREATE INDEX IF NOT EXISTS idx_penjualan_nama ON penjualan_perhiasan(nama_pembeli);
 CREATE INDEX IF NOT EXISTS idx_penjualan_customer ON penjualan_perhiasan(customer_id);
+CREATE INDEX IF NOT EXISTS idx_gadai_tgl_peminjaman ON gadai_perhiasan(tgl_peminjaman DESC);
+CREATE INDEX IF NOT EXISTS idx_gadai_tgl_pelunasan ON gadai_perhiasan(tgl_pelunasan DESC);
+CREATE INDEX IF NOT EXISTS idx_gadai_nama ON gadai_perhiasan(nama);
+CREATE INDEX IF NOT EXISTS idx_gadai_customer ON gadai_perhiasan(customer_id);
 
 -- -----------------------------------------------------------------------------
 -- 5. Row Level Security — dashboard (browser memakai anon key)
@@ -229,6 +256,7 @@ ALTER TABLE penjualan_perhiasan ENABLE ROW LEVEL SECURITY;
 ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE customer_point_ledger ENABLE ROW LEVEL SECURITY;
 ALTER TABLE customer_point_redeem ENABLE ROW LEVEL SECURITY;
+ALTER TABLE gadai_perhiasan ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_groups ENABLE ROW LEVEL SECURITY;
 ALTER TABLE group_menu_permissions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE login_user_groups ENABLE ROW LEVEL SECURITY;
@@ -301,6 +329,12 @@ CREATE POLICY "Dashboard anon authenticated all"
   ON customer_point_redeem FOR ALL TO anon, authenticated
   USING (true) WITH CHECK (true);
 
+-- gadai_perhiasan
+DROP POLICY IF EXISTS "Dashboard anon authenticated all" ON gadai_perhiasan;
+CREATE POLICY "Dashboard anon authenticated all"
+  ON gadai_perhiasan FOR ALL TO anon, authenticated
+  USING (true) WITH CHECK (true);
+
 -- login: RLS aktif, tanpa policy anon/authenticated (hanya service_role via API)
 ALTER TABLE login ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow public read access" ON login;
@@ -322,6 +356,7 @@ INSERT INTO group_menu_permissions (group_id, menu_key, can_read, can_create, ca
   ('a0000000-0000-0000-0000-000000000001', 'sales', TRUE, TRUE, TRUE, TRUE),
   ('a0000000-0000-0000-0000-000000000001', 'purchases', TRUE, TRUE, TRUE, TRUE),
   ('a0000000-0000-0000-0000-000000000001', 'orders', TRUE, TRUE, TRUE, TRUE),
+  ('a0000000-0000-0000-0000-000000000001', 'gadai', TRUE, TRUE, TRUE, TRUE),
   ('a0000000-0000-0000-0000-000000000001', 'calculator', TRUE, TRUE, TRUE, TRUE),
   ('a0000000-0000-0000-0000-000000000001', 'users', TRUE, TRUE, TRUE, TRUE),
   ('a0000000-0000-0000-0000-000000000001', 'user_groups', TRUE, TRUE, TRUE, TRUE),

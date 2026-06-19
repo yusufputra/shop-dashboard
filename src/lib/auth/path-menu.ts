@@ -6,6 +6,7 @@ export function pathnameToMenuKey(pathname: string): MenuKey | null {
   if (pathname.startsWith('/dashboard/sales')) return 'sales'
   if (pathname.startsWith('/dashboard/purchases')) return 'purchases'
   if (pathname.startsWith('/dashboard/orders')) return 'orders'
+  if (pathname.startsWith('/dashboard/gadai')) return 'gadai'
   if (pathname.startsWith('/dashboard/calculator')) return 'calculator'
   if (pathname.startsWith('/dashboard/user-groups')) return 'user_groups'
   if (pathname.startsWith('/dashboard/customers/redeem')) return 'point_redeem'

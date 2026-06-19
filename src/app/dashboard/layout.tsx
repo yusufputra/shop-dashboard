@@ -20,6 +20,7 @@ import {
   type LucideIcon,
   MinusCircle,
   Gem,
+  Landmark,
 } from 'lucide-react'
 import { useState } from 'react'
 import type { MenuKey } from '@/lib/auth/permissions'
@@ -39,6 +40,7 @@ const navigation: {
   { name: 'Penjualan', href: '/dashboard/sales', icon: TrendingUp, menuKey: 'sales' },
   { name: 'Pembelian', href: '/dashboard/purchases', icon: ShoppingCart, menuKey: 'purchases' },
   { name: 'Pesanan', href: '/dashboard/orders', icon: ClipboardList, menuKey: 'orders' },
+  { name: 'Gadai', href: '/dashboard/gadai', icon: Landmark, menuKey: 'gadai' },
   { name: 'Kalkulator Emas', href: '/dashboard/calculator', icon: Calculator, menuKey: 'calculator' },
   { name: 'Pengguna', href: '/dashboard/users', icon: Users, menuKey: 'users' },
   { name: 'Grup pengguna', href: '/dashboard/user-groups', icon: UsersRound, menuKey: 'user_groups' },

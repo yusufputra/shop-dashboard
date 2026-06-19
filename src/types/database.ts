@@ -401,6 +401,62 @@ export interface Database {
           created_at?: string
         }
       }
+      gadai_perhiasan: {
+        Row: {
+          no_invoice: string
+          customer_id: string | null
+          nama: string
+          nik: string | null
+          perhiasan: string
+          model: string
+          kadar: number | null
+          berat: number
+          harga_barang: number
+          uang_dipinjam: number
+          tgl_peminjaman: string
+          tgl_pelunasan: string | null
+          foto_pelunasan: string | null
+          created_by: string | null
+          created_by_nama: string | null
+          created_at: string
+        }
+        Insert: {
+          no_invoice?: string
+          customer_id?: string | null
+          nama: string
+          nik?: string | null
+          perhiasan: string
+          model: string
+          kadar?: number | null
+          berat: number
+          harga_barang: number
+          uang_dipinjam: number
+          tgl_peminjaman?: string
+          tgl_pelunasan?: string | null
+          foto_pelunasan?: string | null
+          created_by?: string | null
+          created_by_nama?: string | null
+          created_at?: string
+        }
+        Update: {
+          no_invoice?: string
+          customer_id?: string | null
+          nama?: string
+          nik?: string | null
+          perhiasan?: string
+          model?: string
+          kadar?: number | null
+          berat?: number
+          harga_barang?: number
+          uang_dipinjam?: number
+          tgl_peminjaman?: string
+          tgl_pelunasan?: string | null
+          foto_pelunasan?: string | null
+          created_by?: string | null
+          created_by_nama?: string | null
+          created_at?: string
+        }
+      }
     }
   }
 }
@@ -409,6 +465,7 @@ export type StokPerhiasan = Database['public']['Tables']['stok_perhiasan']['Row'
 export type PembelianPerhiasan = Database['public']['Tables']['pembelian_perhiasan']['Row']
 export type PesananPerhiasan = Database['public']['Tables']['pesanan_perhiasan']['Row']
 export type PenjualanPerhiasan = Database['public']['Tables']['penjualan_perhiasan']['Row']
+export type GadaiPerhiasan = Database['public']['Tables']['gadai_perhiasan']['Row']
 export type Login = Database['public']['Tables']['login']['Row']
 export type Customer = Database['public']['Tables']['customers']['Row']
 export type CustomerPointLedger = Database['public']['Tables']['customer_point_ledger']['Row']
