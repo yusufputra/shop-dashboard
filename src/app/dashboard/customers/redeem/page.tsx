@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { ArrowLeft, Award, MinusCircle, Search } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { fetchCustomerByPublicId } from '@/lib/customers/resolve'
-import { computeAvailablePoints } from '@/lib/customers/points'
+import { computeAvailablePoints, displayPoints } from '@/lib/customers/points'
 import { customerPublicIdPath } from '@/lib/customers/public-id'
 import { createdByFields } from '@/lib/audit/created-by'
 import { useDashboardAuth, useRoutePermissionGuard } from '@/app/dashboard/dashboard-auth-context'
@@ -131,8 +131,9 @@ export default function RedeemPointPage() {
       return
     }
 
-    if (points > availablePoints) {
-      alert(`Poin tidak cukup. Saldo tersedia: ${availablePoints}`)
+    const redeemablePoints = displayPoints(availablePoints)
+    if (points > redeemablePoints) {
+      alert(`Poin tidak cukup. Saldo tersedia: ${redeemablePoints}`)
       return
     }
 
@@ -221,7 +222,7 @@ export default function RedeemPointPage() {
               </div>
               <div className="text-right">
                 <p className="text-sm text-amber-900">Saldo poin tersedia</p>
-                <p className="text-3xl font-bold text-amber-700">{availablePoints}</p>
+                <p className="text-3xl font-bold text-amber-700">{displayPoints(availablePoints)}</p>
               </div>
             </div>
           </div>
@@ -268,7 +269,7 @@ export default function RedeemPointPage() {
           </p>
           <button
             type="submit"
-            disabled={!customerId || submitting || availablePoints === 0}
+            disabled={!customerId || submitting || displayPoints(availablePoints ?? 0) === 0}
             className="rounded-lg bg-gradient-to-r from-red-500 to-rose-500 px-6 py-2.5 text-sm font-medium text-white shadow-md transition hover:from-red-600 hover:to-rose-600 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {submitting ? 'Menyimpan…' : 'Simpan redeem'}

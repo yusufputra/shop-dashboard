@@ -35,7 +35,7 @@ export async function resolveCustomerIdByPublicId(
 
 export function pointsForSaleWeight(beratGrams: number): number {
   if (!Number.isFinite(beratGrams) || beratGrams <= 0) return 0
-  return Math.floor(beratGrams)
+  return beratGrams
 }
 
 export function defaultPointExpiryIso(): string {

@@ -74,7 +74,7 @@ COMMENT ON COLUMN customers.alamat IS 'Alamat pelanggan (opsional)';
 CREATE TABLE IF NOT EXISTS customer_point_ledger (
   ledger_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   customer_id UUID NOT NULL REFERENCES customers(customer_id) ON DELETE CASCADE,
-  points INTEGER NOT NULL CHECK (points > 0),
+  points DECIMAL(12, 3) NOT NULL CHECK (points > 0),
   weight_grams DECIMAL(12, 3) NOT NULL DEFAULT 0,
   ref_type VARCHAR(32) NOT NULL,
   ref_key VARCHAR(64) NOT NULL,

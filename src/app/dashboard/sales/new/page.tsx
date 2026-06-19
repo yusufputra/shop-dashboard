@@ -330,7 +330,7 @@ export default function NewSalePage() {
             )}
             <p className="text-xs text-gray-500 mt-1">
               Daftar pelanggan di menu Pelanggan. Jika ID valid, nama dan telepon terisi otomatis; jika tidak punya ID,
-              isi nama pembeli dan telepon di bawah secara manual. Poin = berat item (gram, ke bawah), berlaku 1 tahun.
+              isi nama pembeli dan telepon di bawah secara manual. Poin = berat item (gram), berlaku 1 tahun; saldo ditampilkan dibulatkan ke bawah.
             </p>
           </div>
 

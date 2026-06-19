@@ -8,7 +8,7 @@ import { ArrowLeft, Award, Download, Edit, ShoppingBag, TrendingUp } from 'lucid
 import { customerPublicIdPath, normalizePublicIdInput } from '@/lib/customers/public-id'
 import { downloadCustomerCardPng } from '@/lib/customers/customer-card-download'
 import { formatCurrency, formatWeight } from '@/lib/utils'
-import { buildPointHistory, computeAvailablePoints } from '@/lib/customers/points'
+import { buildPointHistory, computeAvailablePoints, displayPoints } from '@/lib/customers/points'
 import { useDashboardAuth, useRoutePermissionGuard } from '@/app/dashboard/dashboard-auth-context'
 import type { Customer, CustomerPointLedger, CustomerPointRedeem } from '@/types/database'
 
@@ -182,7 +182,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ publi
             <Award className="h-6 w-6" />
             <h2 className="text-lg font-semibold">Saldo poin aktif</h2>
           </div>
-          <p className="mt-2 text-4xl font-bold text-amber-700">{availablePoints}</p>
+          <p className="mt-2 text-4xl font-bold text-amber-700">{displayPoints(availablePoints)}</p>
           <p className="mt-1 text-sm text-gray-600">
             Poin aktif dikurangi total redeem. Poin dari penjualan kedaluwarsa setelah 1 tahun.
           </p>

@@ -1,5 +1,11 @@
 import type { CustomerPointLedger, CustomerPointRedeem } from '@/types/database'
 
+/** Saldo poin mentah (desimal) dibulatkan ke bawah untuk tampilan & redeem. */
+export function displayPoints(rawPoints: number): number {
+  if (!Number.isFinite(rawPoints) || rawPoints <= 0) return 0
+  return Math.floor(rawPoints)
+}
+
 export function sumActiveLedgerPoints(
   ledger: CustomerPointLedger[],
   now: Date = new Date()

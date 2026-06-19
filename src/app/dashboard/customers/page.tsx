@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { Plus, Search } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { customerPublicIdPath } from '@/lib/customers/public-id'
-import { computeAvailablePoints } from '@/lib/customers/points'
+import { computeAvailablePoints, displayPoints } from '@/lib/customers/points'
 import { useDashboardAuth, useRoutePermissionGuard } from '@/app/dashboard/dashboard-auth-context'
 import type { Customer, CustomerPointLedger, CustomerPointRedeem } from '@/types/database'
 
@@ -186,7 +186,9 @@ export default function CustomersPage() {
                       <td className="px-4 py-3 text-sm text-gray-600">
                         {[c.phone, c.email].filter(Boolean).join(' · ') || '—'}
                       </td>
-                      <td className="px-4 py-3 text-right text-sm font-semibold text-amber-700">{pts}</td>
+                      <td className="px-4 py-3 text-right text-sm font-semibold text-amber-700">
+                        {displayPoints(pts)}
+                      </td>
                     </tr>
                   )
                 })
