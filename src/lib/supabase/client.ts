@@ -1,8 +1,11 @@
-import { createBrowserClient } from '@supabase/ssr'
+import { createDbClient, type DbProxyClient } from '@/lib/api/db-client'
 
-export function createClient() {
-  return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+let cachedClient: DbProxyClient | null = null
+
+/** Browser-safe DB access via Next.js API proxy (no Supabase anon key). */
+export function createClient(): DbProxyClient {
+  if (!cachedClient) {
+    cachedClient = createDbClient()
+  }
+  return cachedClient
 }

@@ -32,11 +32,6 @@ CREATE INDEX IF NOT EXISTS idx_gadai_customer ON gadai_perhiasan(customer_id);
 
 ALTER TABLE gadai_perhiasan ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS "Dashboard anon authenticated all" ON gadai_perhiasan;
-CREATE POLICY "Dashboard anon authenticated all"
-  ON gadai_perhiasan FOR ALL TO anon, authenticated
-  USING (true) WITH CHECK (true);
-
 INSERT INTO group_menu_permissions (group_id, menu_key, can_read, can_create, can_update, can_delete)
 SELECT g.group_id, 'gadai', TRUE, TRUE, TRUE, TRUE
 FROM user_groups g

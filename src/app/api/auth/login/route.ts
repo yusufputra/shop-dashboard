@@ -11,11 +11,13 @@ async function verifyStoredPassword(
   stored: string
 ): Promise<boolean> {
   if (stored.startsWith('$2a$') || stored.startsWith('$2b$') || stored.startsWith('$2y$')) {
+    console.log('bcrypt', plain, stored)
     return bcrypt.compare(plain, stored)
   }
   const a = Buffer.from(plain, 'utf8')
   const b = Buffer.from(stored, 'utf8')
   if (a.length !== b.length) return false
+  console.log('timingSafeEqual', a, b)
   return timingSafeEqual(a, b)
 }
 
@@ -24,7 +26,7 @@ export async function POST(request: Request) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   if (!serviceKey || !url) {
     return NextResponse.json(
-      { error: 'Server belum dikonfigurasi (Supabase service role).' },
+      { error: 'Internal server error' },
       { status: 500 }
     )
   }
@@ -54,7 +56,7 @@ export async function POST(request: Request) {
     .select('user_id, nama, email, password, group_id, is_superuser')
     .eq('email', identifier)
     .maybeSingle()
-
+  console.log('emailMatch', emailMatch)
   let row = emailMatch.data
   if (!row) {
     const namaMatch = await supabase
@@ -62,10 +64,12 @@ export async function POST(request: Request) {
       .select('user_id, nama, email, password, group_id, is_superuser')
       .eq('nama', identifier)
       .maybeSingle()
+    console.log('namaMatch', namaMatch)
     row = namaMatch.data
   }
 
   if (!row || !(await verifyStoredPassword(password, row.password))) {
+    console.log('login failed', identifier, password, row)
     return NextResponse.json(
       { error: 'Email/nama atau password salah.' },
       { status: 401 }

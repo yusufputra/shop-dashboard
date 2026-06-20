@@ -47,19 +47,6 @@ CREATE INDEX IF NOT EXISTS idx_pembelian_customer ON pembelian_perhiasan(custome
 ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE customer_point_ledger ENABLE ROW LEVEL SECURITY;
 
--- Dev / anon policy (samakan dengan setup_rls_policies untuk tabel lain)
-DROP POLICY IF EXISTS "Allow anon authenticated customers all" ON customers;
-DROP POLICY IF EXISTS "Dashboard anon authenticated all" ON customers;
-CREATE POLICY "Dashboard anon authenticated all"
-  ON customers FOR ALL TO anon, authenticated
-  USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Allow anon authenticated ledger all" ON customer_point_ledger;
-DROP POLICY IF EXISTS "Dashboard anon authenticated all" ON customer_point_ledger;
-CREATE POLICY "Dashboard anon authenticated all"
-  ON customer_point_ledger FOR ALL TO anon, authenticated
-  USING (true) WITH CHECK (true);
-
 -- Menu RBAC "customers" untuk grup Administrator (by name)
 INSERT INTO group_menu_permissions (group_id, menu_key, can_read, can_create, can_update, can_delete)
 SELECT g.group_id, 'customers', TRUE, TRUE, TRUE, TRUE

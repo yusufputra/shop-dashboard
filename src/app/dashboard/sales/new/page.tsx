@@ -178,9 +178,10 @@ export default function NewSalePage() {
           ...prev,
           customer_public_id: id,
           nama_pembeli: row.nama,
-          no_telp: row.phone ?? '',
+          no_telp: row.phone?.trim() ?? '',
+          alamat: row.alamat?.trim() ?? '',
         }))
-        setCustomerLookupMessage('Pelanggan ditemukan — nama dan telepon sudah diisi otomatis.')
+        setCustomerLookupMessage('Pelanggan ditemukan — nama, telepon, dan alamat sudah diisi otomatis.')
       } else {
         setFormData((prev) => ({
           ...prev,
@@ -329,8 +330,8 @@ export default function NewSalePage() {
               </p>
             )}
             <p className="text-xs text-gray-500 mt-1">
-              Daftar pelanggan di menu Pelanggan. Jika ID valid, nama dan telepon terisi otomatis; jika tidak punya ID,
-              isi nama pembeli dan telepon di bawah secara manual. Poin = berat item (gram), berlaku 1 tahun; saldo ditampilkan dibulatkan ke bawah.
+              Daftar pelanggan di menu Pelanggan. Jika ID valid, nama, telepon, dan alamat terisi otomatis; jika tidak punya ID,
+              isi data pembeli di bawah secara manual. Poin = berat item (gram), berlaku 1 tahun; saldo ditampilkan dibulatkan ke bawah.
             </p>
           </div>
 
@@ -373,6 +374,7 @@ export default function NewSalePage() {
               value={formData.alamat}
               onChange={handleChange}
               required
+              placeholder="Terisi otomatis dari ID, atau ketik manual"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black"
             />
           </div>

@@ -20,11 +20,5 @@ CREATE INDEX IF NOT EXISTS idx_penjualan_tanggal ON penjualan_perhiasan(tanggal 
 CREATE INDEX IF NOT EXISTS idx_penjualan_stok_seri ON penjualan_perhiasan(stok_seri);
 CREATE INDEX IF NOT EXISTS idx_penjualan_nama ON penjualan_perhiasan(nama_pembeli);
 
--- Enable Row Level Security
+-- Enable Row Level Security (akses via service_role di API server)
 ALTER TABLE penjualan_perhiasan ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Dashboard anon authenticated all"
-  ON penjualan_perhiasan FOR ALL
-  TO anon, authenticated
-  USING (true)
-  WITH CHECK (true);

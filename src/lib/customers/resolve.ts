@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { DbProxyClient } from '@/lib/api/db-client'
 
 export type CustomerLookupRow = {
   customer_id: string
@@ -10,7 +10,7 @@ export type CustomerLookupRow = {
 }
 
 export async function fetchCustomerByPublicId(
-  supabase: SupabaseClient,
+  supabase: DbProxyClient,
   raw: string
 ): Promise<CustomerLookupRow | null> {
   const public_id = raw.trim()
@@ -22,17 +22,17 @@ export async function fetchCustomerByPublicId(
     .maybeSingle()
   if (!data) return null
   return {
-    customer_id: data.customer_id,
-    nama: data.nama,
-    nik: data.nik ?? null,
-    phone: data.phone ?? null,
-    alamat: data.alamat ?? null,
-    email: data.email ?? null,
+    customer_id: String(data.customer_id),
+    nama: String(data.nama),
+    nik: data.nik != null ? String(data.nik) : null,
+    phone: data.phone != null ? String(data.phone) : null,
+    alamat: data.alamat != null ? String(data.alamat) : null,
+    email: data.email != null ? String(data.email) : null,
   }
 }
 
 export async function resolveCustomerIdByPublicId(
-  supabase: SupabaseClient,
+  supabase: DbProxyClient,
   raw: string
 ): Promise<string | null> {
   const row = await fetchCustomerByPublicId(supabase, raw)

@@ -2,7 +2,7 @@
 -- Shop Dashboard — baseline schema (fresh install)
 -- Jalankan file ini sekali di Supabase SQL Editor untuk setup database lengkap.
 -- Untuk database lama, gunakan file migrasi incremental di folder supabase/.
--- Setelah schema: jalankan setup_storage_policies.sql untuk bucket foto stok.
+-- Setelah schema: jalankan setup_storage_policies.sql untuk bucket foto stok (public read saja).
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
@@ -246,7 +246,9 @@ CREATE INDEX IF NOT EXISTS idx_gadai_nama ON gadai_perhiasan(nama);
 CREATE INDEX IF NOT EXISTS idx_gadai_customer ON gadai_perhiasan(customer_id);
 
 -- -----------------------------------------------------------------------------
--- 5. Row Level Security — dashboard (browser memakai anon key)
+-- 5. Row Level Security — hanya service_role (API Next.js + RBAC JWT)
+-- Tanpa policy anon/authenticated = akses ditolak kecuali service role (bypass RLS).
+-- Database lama yang masih punya policy anon: jalankan revoke_anon_rls.sql
 -- -----------------------------------------------------------------------------
 
 ALTER TABLE stok_perhiasan ENABLE ROW LEVEL SECURITY;
@@ -260,87 +262,7 @@ ALTER TABLE gadai_perhiasan ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_groups ENABLE ROW LEVEL SECURITY;
 ALTER TABLE group_menu_permissions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE login_user_groups ENABLE ROW LEVEL SECURITY;
-
--- stok_perhiasan
-DROP POLICY IF EXISTS "Allow authenticated users to view stok" ON stok_perhiasan;
-DROP POLICY IF EXISTS "Allow authenticated users to insert stok" ON stok_perhiasan;
-DROP POLICY IF EXISTS "Allow authenticated users to update stok" ON stok_perhiasan;
-DROP POLICY IF EXISTS "Allow authenticated users to delete stok" ON stok_perhiasan;
-DROP POLICY IF EXISTS "Allow public read access" ON stok_perhiasan;
-DROP POLICY IF EXISTS "Allow public insert" ON stok_perhiasan;
-DROP POLICY IF EXISTS "Allow public update" ON stok_perhiasan;
-DROP POLICY IF EXISTS "Allow public delete" ON stok_perhiasan;
-DROP POLICY IF EXISTS "Dashboard anon authenticated all" ON stok_perhiasan;
-CREATE POLICY "Dashboard anon authenticated all"
-  ON stok_perhiasan FOR ALL TO anon, authenticated
-  USING (true) WITH CHECK (true);
-
--- pembelian_perhiasan
-DROP POLICY IF EXISTS "Allow authenticated users to view pembelian" ON pembelian_perhiasan;
-DROP POLICY IF EXISTS "Allow authenticated users to insert pembelian" ON pembelian_perhiasan;
-DROP POLICY IF EXISTS "Allow authenticated users to update pembelian" ON pembelian_perhiasan;
-DROP POLICY IF EXISTS "Allow authenticated users to delete pembelian" ON pembelian_perhiasan;
-DROP POLICY IF EXISTS "Allow public read access" ON pembelian_perhiasan;
-DROP POLICY IF EXISTS "Allow public insert" ON pembelian_perhiasan;
-DROP POLICY IF EXISTS "Allow public update" ON pembelian_perhiasan;
-DROP POLICY IF EXISTS "Allow public delete" ON pembelian_perhiasan;
-DROP POLICY IF EXISTS "Dashboard anon authenticated all" ON pembelian_perhiasan;
-CREATE POLICY "Dashboard anon authenticated all"
-  ON pembelian_perhiasan FOR ALL TO anon, authenticated
-  USING (true) WITH CHECK (true);
-
--- pesanan_perhiasan
-DROP POLICY IF EXISTS "Allow authenticated users to view pesanan" ON pesanan_perhiasan;
-DROP POLICY IF EXISTS "Allow authenticated users to insert pesanan" ON pesanan_perhiasan;
-DROP POLICY IF EXISTS "Allow authenticated users to update pesanan" ON pesanan_perhiasan;
-DROP POLICY IF EXISTS "Allow authenticated users to delete pesanan" ON pesanan_perhiasan;
-DROP POLICY IF EXISTS "Allow public read access" ON pesanan_perhiasan;
-DROP POLICY IF EXISTS "Allow public insert" ON pesanan_perhiasan;
-DROP POLICY IF EXISTS "Allow public update" ON pesanan_perhiasan;
-DROP POLICY IF EXISTS "Allow public delete" ON pesanan_perhiasan;
-DROP POLICY IF EXISTS "Dashboard anon authenticated all" ON pesanan_perhiasan;
-CREATE POLICY "Dashboard anon authenticated all"
-  ON pesanan_perhiasan FOR ALL TO anon, authenticated
-  USING (true) WITH CHECK (true);
-
--- penjualan_perhiasan
-DROP POLICY IF EXISTS "Dashboard anon authenticated all" ON penjualan_perhiasan;
-CREATE POLICY "Dashboard anon authenticated all"
-  ON penjualan_perhiasan FOR ALL TO anon, authenticated
-  USING (true) WITH CHECK (true);
-
--- customers
-DROP POLICY IF EXISTS "Allow anon authenticated customers all" ON customers;
-DROP POLICY IF EXISTS "Dashboard anon authenticated all" ON customers;
-CREATE POLICY "Dashboard anon authenticated all"
-  ON customers FOR ALL TO anon, authenticated
-  USING (true) WITH CHECK (true);
-
--- customer_point_ledger
-DROP POLICY IF EXISTS "Allow anon authenticated ledger all" ON customer_point_ledger;
-DROP POLICY IF EXISTS "Dashboard anon authenticated all" ON customer_point_ledger;
-CREATE POLICY "Dashboard anon authenticated all"
-  ON customer_point_ledger FOR ALL TO anon, authenticated
-  USING (true) WITH CHECK (true);
-
--- customer_point_redeem
-DROP POLICY IF EXISTS "Dashboard anon authenticated all" ON customer_point_redeem;
-CREATE POLICY "Dashboard anon authenticated all"
-  ON customer_point_redeem FOR ALL TO anon, authenticated
-  USING (true) WITH CHECK (true);
-
--- gadai_perhiasan
-DROP POLICY IF EXISTS "Dashboard anon authenticated all" ON gadai_perhiasan;
-CREATE POLICY "Dashboard anon authenticated all"
-  ON gadai_perhiasan FOR ALL TO anon, authenticated
-  USING (true) WITH CHECK (true);
-
--- login: RLS aktif, tanpa policy anon/authenticated (hanya service_role via API)
 ALTER TABLE login ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Allow public read access" ON login;
-DROP POLICY IF EXISTS "Allow public insert" ON login;
-DROP POLICY IF EXISTS "Allow public update" ON login;
-DROP POLICY IF EXISTS "Allow public delete" ON login;
 
 -- -----------------------------------------------------------------------------
 -- 6. Seed RBAC — grup Administrator

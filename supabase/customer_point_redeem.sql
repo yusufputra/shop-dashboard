@@ -16,8 +16,3 @@ CREATE INDEX IF NOT EXISTS idx_point_redeem_customer ON customer_point_redeem(cu
 CREATE INDEX IF NOT EXISTS idx_point_redeem_created ON customer_point_redeem(created_at DESC);
 
 ALTER TABLE customer_point_redeem ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Dashboard anon authenticated all" ON customer_point_redeem;
-CREATE POLICY "Dashboard anon authenticated all"
-  ON customer_point_redeem FOR ALL TO anon, authenticated
-  USING (true) WITH CHECK (true);

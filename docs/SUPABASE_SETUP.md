@@ -20,14 +20,16 @@ This guide wires a new Supabase project to this app: **PostgreSQL schema / RLS**
 1. In the project: **Settings → API**.
 2. Copy:
    - **Project URL** → `NEXT_PUBLIC_SUPABASE_URL`
-   - **`anon` `public` key** → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - **`service_role` key** → `SUPABASE_SERVICE_ROLE_KEY` (server only — never expose to the browser)
 3. In the repo root:
 
    ```bash
    cp .env.local.example .env.local
    ```
 
-4. Fill `.env.local` with those values.
+4. Fill `.env.local` with those values plus `AUTH_SESSION_SECRET` (min 32 characters).
+
+The dashboard no longer uses the Supabase **`anon` key**. All database and storage calls from the browser go through Next.js API routes (`/api/db/*`, `/api/storage/*`) which use the service role key server-side and enforce RBAC from the JWT session cookie.
 
 ## 3. Database
 
@@ -43,7 +45,7 @@ Lalu jalankan storage (section 4.2):
 
 | File | Purpose |
 | ---- | ------- |
-| [`supabase/setup_storage_policies.sql`](../supabase/setup_storage_policies.sql) | Bucket `jewelry-images` + policy upload foto stok |
+| [`supabase/setup_storage_policies.sql`](../supabase/setup_storage_policies.sql) | Bucket `jewelry-images` + public read (upload lewat API server) |
 
 Buat user pertama di tabel `login` (password bcrypt); assign ke grup Administrator jika perlu.
 
@@ -61,24 +63,21 @@ Jika project Supabase sudah ada sebelum perubahan schema, jalankan **hanya** fil
 | [`supabase/add_images_column.sql`](../supabase/add_images_column.sql) | Kolom `images` belum ada |
 | [`supabase/add_warna_column.sql`](../supabase/add_warna_column.sql) | Kolom `warna` belum ada |
 | [`supabase/add_biaya_column_to_penjualan.sql`](../supabase/add_biaya_column_to_penjualan.sql) | Kolom `biaya` belum ada |
-| [`supabase/fix_dashboard_anon_rls.sql`](../supabase/fix_dashboard_anon_rls.sql) | Error 42501 saat create/update dari dashboard |
+| [`supabase/revoke_anon_rls.sql`](../supabase/revoke_anon_rls.sql) | Database lama — cabut policy RLS/storage terbuka untuk `anon` |
 
 Lihat [`MIGRATION_GUIDE.md`](../MIGRATION_GUIDE.md) untuk migrasi stok lama (`status`, `pembelian_seri`).
 
-### Dashboard login & RLS
+### Dashboard login & data access
 
-Login memakai tabel **`login`** + cookie JWT (bukan Supabase Auth). Query dari browser memakai **`anon` key**, jadi policy RLS harus mengizinkan role **`anon`** (bukan hanya `authenticated`).
+Login memakai tabel **`login`** + cookie JWT (bukan Supabase Auth). Semua query dari browser memakai **API proxy Next.js** (`src/lib/supabase/client.ts` → `/api/db/*`) dengan **service role key** di server, plus pengecekan izin RBAC per menu.
 
-- **Instal baru:** cukup `schema.sql` (sudah termasuk policy `Dashboard anon authenticated all` untuk semua tabel dashboard).
-- **Database lama** (hanya policy `authenticated`): jalankan [`supabase/fix_dashboard_anon_rls.sql`](../supabase/fix_dashboard_anon_rls.sql) sekali di SQL Editor.
-
-Tabel yang dibuka untuk dashboard: `stok_perhiasan`, `pembelian_perhiasan`, `pesanan_perhiasan`, `penjualan_perhiasan`, `customers`, `customer_point_ledger`, `customer_point_redeem`. Tabel `login` / RBAC hanya lewat **service role** di API server (RLS login tanpa policy anon — sudah ada di `schema.sql`).
+Tabel `login` / RBAC hanya lewat service role di API server. RLS **enabled** tanpa policy `anon`/`authenticated` — defense-in-depth jika anon key bocor.
 
 Buat user pertama di tabel `login` (atau seed dari migrasi RBAC); gunakan email/nama + password di `/login`.
 
 ### Upload foto stok
 
-Jalankan juga [`supabase/setup_storage_policies.sql`](../supabase/setup_storage_policies.sql) agar role **`anon`** bisa upload ke bucket `jewelry-images`.
+Upload gambar memakai `/api/storage/upload` (service role di server). Bucket `jewelry-images` tetap perlu ada; policy storage untuk anon tidak lagi diperlukan untuk dashboard.
 
 ---
 
@@ -98,11 +97,8 @@ The app uploads inventory images to Storage bucket **`jewelry-images`** (see `sr
 Run [`supabase/setup_storage_policies.sql`](../supabase/setup_storage_policies.sql) in the SQL Editor. It:
 
 - Ensures the bucket exists and is public
-- Allows **public read** on objects in `jewelry-images`
-- Allows **authenticated** insert / update / delete
-- Includes **`anon`** upload/update/delete policies labeled for development — **remove those blocks before production** if you do not want anonymous clients touching Storage
-
-For a minimal production-oriented set, keep only public `SELECT` and authenticated `INSERT` / `UPDATE` / `DELETE` on `bucket_id = 'jewelry-images'`.
+- Allows **public read** (`SELECT`) on objects in `jewelry-images` for image previews
+- Does **not** grant `INSERT` / `UPDATE` / `DELETE` to `anon` or `authenticated` — uploads go through `/api/storage/*` with the service role key
 
 ### 4.3 Next.js image hostname
 
@@ -127,9 +123,11 @@ Restart `npm run dev` after changing config.
 
 ### 42501 / 403 — `new row violates row-level security policy`
 
-**Tabel (`stok_perhiasan`, pembelian, dll.):** Jalankan [`supabase/fix_dashboard_anon_rls.sql`](../supabase/fix_dashboard_anon_rls.sql). Penyebab umum: policy hanya untuk `authenticated` padahal browser memakai `anon` key.
+**Dashboard (API proxy):** Pastikan `SUPABASE_SERVICE_ROLE_KEY` terisi di `.env.local`. Service role melewati RLS; error 42501 dari app biasanya berarti key salah/kosong atau request tidak lewat API server.
 
-**Storage:** Biasanya upload gambar ditolak RLS, atau URL gambar tanpa segmen `public`.
+**Database lama yang masih punya policy anon terbuka:** Jalankan [`supabase/revoke_anon_rls.sql`](../supabase/revoke_anon_rls.sql) setelah deploy API proxy.
+
+**Storage:** Upload gambar ditolak RLS → pastikan upload lewat app (login + izin inventory/gadai), bukan langsung ke Supabase Storage API dengan anon key.
 
 **A. Fix the URL (viewing / linking images)**
 
@@ -143,9 +141,9 @@ The app uses `getPublicUrl()`, which generates the **`.../object/public/jewelry-
 
 **B. Fix Storage RLS (uploads from the dashboard)**
 
-1. In Supabase: **SQL Editor** → run the full [`supabase/setup_storage_policies.sql`](../supabase/setup_storage_policies.sql) (section 4.2).
+1. In Supabase: **SQL Editor** → run [`supabase/setup_storage_policies.sql`](../supabase/setup_storage_policies.sql) or [`supabase/revoke_anon_rls.sql`](../supabase/revoke_anon_rls.sql) (includes storage section).
 2. Confirm the bucket id is exactly **`jewelry-images`** (**Storage → Buckets**).
-3. **Stay logged in** to the app when uploading. Uploads use the **authenticated** role; expired sessions or working while logged out will fail if only `authenticated` policies allow `INSERT`.
+3. Uploads use **service role** via `/api/storage/upload` — user must be logged in with RBAC permission; JWT session cookie must be valid.
 4. Inspect policies:
 
    ```sql
@@ -155,9 +153,7 @@ The app uses `getPublicUrl()`, which generates the **`.../object/public/jewelry-
    ORDER BY policyname;
    ```
 
-   You should see policies allowing **`SELECT`** for reads on `jewelry-images` and **`INSERT`** (and optionally `UPDATE` / `DELETE`) for **`authenticated`** (and optionally **`anon`** if you kept the dev policies in that script).
-
-5. If you added conflicting policies in the dashboard, remove duplicates or re-run the setup script after adjusting drops — overlapping restrictive policies can still block inserts.
+   For API-proxy setup you should see **`SELECT`** (public read) on `jewelry-images` only — not `INSERT` for `anon`.
 
 After fixing policies, try **Inventory → New** again with a small image.
 
@@ -167,12 +163,11 @@ After fixing policies, try **Inventory → New** again with a small image.
 | ------- | ------------- |
 | `relation does not exist` | Re-run the SQL files in section 3 in order. |
 | Login fails | User exists under **Authentication → Users**, password correct, email confirmed. |
-| Upload fails / RLS (general) | Bucket name exactly `jewelry-images`; storage policies applied; user is logged in (authenticated). |
+| Upload fails / RLS (general) | Bucket name exactly `jewelry-images`; `SUPABASE_SERVICE_ROLE_KEY` set; logged in with create/update permission on inventory or gadai. |
 | Broken image previews | URLs use `/object/public/jewelry-images/`; bucket is public for reads; `next.config.ts` `remotePatterns` includes your project host; hard-refresh after config changes. |
 
 ---
 
 ## Related files
 
-- App Supabase clients: `src/lib/supabase/client.ts`, `server.ts`, `middleware.ts`
-- Older storage notes: [`supabase/setup_storage.md`](../supabase/setup_storage.md)
+- App Supabase access: `src/lib/supabase/client.ts` (API proxy client), `src/lib/api/db-client.ts`, `src/app/api/db/*`, `src/app/api/storage/*`
