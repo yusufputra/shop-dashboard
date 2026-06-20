@@ -413,6 +413,8 @@ export interface Database {
           berat: number
           harga_barang: number
           uang_dipinjam: number
+          bunga: number
+          total_pelunasan: number
           tgl_peminjaman: string
           tgl_pelunasan: string | null
           foto_pelunasan: string | null
@@ -431,6 +433,8 @@ export interface Database {
           berat: number
           harga_barang: number
           uang_dipinjam: number
+          bunga?: number
+          total_pelunasan?: number
           tgl_peminjaman?: string
           tgl_pelunasan?: string | null
           foto_pelunasan?: string | null
@@ -449,6 +453,8 @@ export interface Database {
           berat?: number
           harga_barang?: number
           uang_dipinjam?: number
+          bunga?: number
+          total_pelunasan?: number
           tgl_peminjaman?: string
           tgl_pelunasan?: string | null
           foto_pelunasan?: string | null

@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS gadai_perhiasan (
   berat DECIMAL(10, 2) NOT NULL,
   harga_barang DECIMAL(15, 2) NOT NULL,
   uang_dipinjam DECIMAL(15, 2) NOT NULL,
+  bunga DECIMAL(15, 2) NOT NULL DEFAULT 0,
+  total_pelunasan DECIMAL(15, 2) NOT NULL DEFAULT 0,
   tgl_peminjaman DATE NOT NULL DEFAULT CURRENT_DATE,
   tgl_pelunasan DATE,
   foto_pelunasan TEXT,
@@ -23,6 +25,8 @@ CREATE TABLE IF NOT EXISTS gadai_perhiasan (
 
 COMMENT ON COLUMN gadai_perhiasan.customer_id IS 'Member ID pelanggan (opsional, FK customers)';
 COMMENT ON COLUMN gadai_perhiasan.nik IS 'Nomor Induk Kependudukan';
+COMMENT ON COLUMN gadai_perhiasan.bunga IS 'Bunga pinjaman (Rp)';
+COMMENT ON COLUMN gadai_perhiasan.total_pelunasan IS 'Total pelunasan = uang dipinjam + bunga (Rp)';
 COMMENT ON COLUMN gadai_perhiasan.foto_pelunasan IS 'URL foto bukti pelunasan';
 
 CREATE INDEX IF NOT EXISTS idx_gadai_tgl_peminjaman ON gadai_perhiasan(tgl_peminjaman DESC);

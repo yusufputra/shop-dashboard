@@ -166,6 +166,9 @@ export default function GadaiPage() {
                   Uang Dipinjam
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-900 uppercase">
+                  Total Pelunasan
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-900 uppercase">
                   Tgl Peminjaman
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-900 uppercase">
@@ -182,7 +185,7 @@ export default function GadaiPage() {
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={11} className="px-6 py-12 text-center text-gray-500">
                     Tidak ada data gadai
                   </td>
                 </tr>
@@ -209,6 +212,11 @@ export default function GadaiPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {formatCurrency(Number(item.uang_dipinjam))}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-700">
+                        {formatCurrency(
+                          Number(item.total_pelunasan ?? item.uang_dipinjam + (item.bunga ?? 0))
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {new Date(item.tgl_peminjaman).toLocaleDateString('id-ID')}

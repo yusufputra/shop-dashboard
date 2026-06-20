@@ -5,11 +5,12 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Save } from 'lucide-react'
 import Link from 'next/link'
-import { generateSerialNumber, KADAR_K_OPTIONS, parseKadarKSelect } from '@/lib/utils'
+import { generateSerialNumber, KADAR_K_OPTIONS, parseKadarKSelect, formatCurrency } from '@/lib/utils'
 import { fetchCustomerByPublicId, resolveCustomerIdByPublicId } from '@/lib/customers/resolve'
 import { useDashboardAuth, useRoutePermissionGuard } from '@/app/dashboard/dashboard-auth-context'
 import { createdByFields } from '@/lib/audit/created-by'
 import { PERHIASAN_OPTIONS } from '@/lib/perhiasan-options'
+import { computeTotalPelunasan, parseMoneyInput } from '@/lib/gadai/settlement'
 
 export default function NewGadaiPage() {
   useRoutePermissionGuard('gadai', 'create')
@@ -33,6 +34,7 @@ export default function NewGadaiPage() {
     berat: '',
     harga_barang: '',
     uang_dipinjam: '',
+    bunga: '',
     tgl_peminjaman: new Date().toISOString().split('T')[0],
     tgl_pelunasan: '',
   })
@@ -96,6 +98,10 @@ export default function NewGadaiPage() {
         return
       }
 
+      const uangDipinjam = parseFloat(formData.uang_dipinjam)
+      const bunga = parseMoneyInput(formData.bunga)
+      const totalPelunasan = computeTotalPelunasan(uangDipinjam, bunga)
+
       const { error } = await supabase.from('gadai_perhiasan').insert([
         {
           no_invoice: formData.no_invoice.trim(),
@@ -107,7 +113,9 @@ export default function NewGadaiPage() {
           kadar: kadarNum,
           berat: parseFloat(formData.berat),
           harga_barang: parseFloat(formData.harga_barang),
-          uang_dipinjam: parseFloat(formData.uang_dipinjam),
+          uang_dipinjam: uangDipinjam,
+          bunga,
+          total_pelunasan: totalPelunasan,
           tgl_peminjaman: formData.tgl_peminjaman,
           tgl_pelunasan: formData.tgl_pelunasan || null,
           ...createdByFields(session),
@@ -132,6 +140,11 @@ export default function NewGadaiPage() {
     }
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }))
   }
+
+  const totalPelunasan = computeTotalPelunasan(
+    parseMoneyInput(formData.uang_dipinjam),
+    parseMoneyInput(formData.bunga)
+  )
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -357,8 +370,36 @@ export default function NewGadaiPage() {
               value={formData.uang_dipinjam}
               onChange={handleChange}
               required
+              min="0"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black"
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Bunga (Rp)
+            </label>
+            <input
+              type="number"
+              name="bunga"
+              value={formData.bunga}
+              onChange={handleChange}
+              min="0"
+              placeholder="0"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Total Pelunasan (Rp)
+            </label>
+            <div className="w-full px-4 py-3 border border-amber-200 bg-amber-50 rounded-lg text-lg font-bold text-amber-900">
+              {formatCurrency(totalPelunasan)}
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Otomatis: uang dipinjam + bunga
+            </p>
           </div>
 
           <div>

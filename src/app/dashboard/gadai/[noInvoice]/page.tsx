@@ -287,6 +287,28 @@ export default function GadaiDetailPage({
               </div>
 
               <div className="flex items-start gap-3">
+                <DollarSign className="w-5 h-5 text-gray-400 mt-0.5" />
+                <div>
+                  <p className="text-sm text-gray-600">Bunga</p>
+                  <p className="text-base font-medium text-gray-900">
+                    {formatCurrency(Number(item.bunga ?? 0))}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <DollarSign className="w-5 h-5 text-gray-400 mt-0.5" />
+                <div>
+                  <p className="text-sm text-gray-600">Total Pelunasan</p>
+                  <p className="text-2xl font-bold text-green-600">
+                    {formatCurrency(
+                      Number(item.total_pelunasan ?? item.uang_dipinjam + (item.bunga ?? 0))
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
                 <Calendar className="w-5 h-5 text-gray-400 mt-0.5" />
                 <div>
                   <p className="text-sm text-gray-600">Tgl Peminjaman</p>
