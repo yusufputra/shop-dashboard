@@ -7,6 +7,7 @@ import { ArrowLeft, Save } from 'lucide-react'
 import Link from 'next/link'
 import { PesananPerhiasan } from '@/types/database'
 import { useRoutePermissionGuard } from '@/app/dashboard/dashboard-auth-context'
+import { normalizePerhiasanForSelect, PERHIASAN_OPTIONS } from '@/lib/perhiasan-options'
 
 export default function EditOrderPage({ params }: { params: Promise<{ no: string }> }) {
   useRoutePermissionGuard('orders', 'update')
@@ -42,6 +43,7 @@ export default function EditOrderPage({ params }: { params: Promise<{ no: string
         
         setFormData({
           ...data,
+          jenis_perhiasan: normalizePerhiasanForSelect(data.jenis_perhiasan ?? ''),
           tanggal: new Date(data.tanggal).toISOString().split('T')[0]
         })
       } catch (error) {
@@ -194,11 +196,11 @@ export default function EditOrderPage({ params }: { params: Promise<{ no: string
               required
             >
               <option value="">Pilih Jenis</option>
-              <option value="gelang">Gelang</option>
-              <option value="kalung">Kalung</option>
-              <option value="cincin">Cincin</option>
-              <option value="anting">Anting</option>
-              <option value="liontin">Liontin</option>
+              {PERHIASAN_OPTIONS.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
             </select>
           </div>
 

@@ -6,6 +6,7 @@ export const PERHIASAN_OPTIONS = [
   'Anting',
   'Liontin',
   'Giwang',
+  'Logam Mulia (LM)'
 ] as const
 
 export type PerhiasanOption = (typeof PERHIASAN_OPTIONS)[number]

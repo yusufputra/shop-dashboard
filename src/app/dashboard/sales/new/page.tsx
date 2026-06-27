@@ -16,6 +16,7 @@ import { StokPerhiasan } from '@/types/database'
 import Image from 'next/image'
 import { useDashboardAuth, useRoutePermissionGuard } from '@/app/dashboard/dashboard-auth-context'
 import { createdByFields } from '@/lib/audit/created-by'
+import { normalizePerhiasanForSelect } from '@/lib/perhiasan-options'
 
 export default function NewSalePage() {
   useRoutePermissionGuard('sales', 'create')
@@ -125,7 +126,10 @@ export default function NewSalePage() {
 
       if (updateError) throw updateError
 
-      if (customerId) {
+      const earnsPoints =
+        normalizePerhiasanForSelect(selectedStock.perhiasan) !== 'Logam Mulia (LM)'
+
+      if (customerId && earnsPoints) {
         const weight = Number(selectedStock.berat)
         const pts = pointsForSaleWeight(weight)
         if (pts > 0) {
