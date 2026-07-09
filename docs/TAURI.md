@@ -229,3 +229,7 @@ Each platform job uploads installers as GitHub Actions artifacts:
 When you push a `v*` tag, the workflow also attaches all installers to a GitHub Release.
 
 Note: CI builds are unsigned by default. For public distribution, add Apple/Windows code signing later.
+
+### DevTools (Inspect Element)
+
+Production desktop builds ship with DevTools enabled so you can right-click → **Inspect Element** (or use **F12** / **Cmd+Option+I** on macOS) inside the packaged app. This is intended for internal shop debugging only.
