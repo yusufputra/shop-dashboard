@@ -4,9 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "dev:desktop": "TAURI=1 next dev",
+    "dev:desktop": "node scripts/dev-desktop.mjs",
     "build": "next build",
-    "build:desktop": "TAURI=1 next build && node scripts/prepare-tauri-bundle.mjs",
+    "build:desktop": "node scripts/build-desktop.mjs",
     "start": "next start",
     "lint": "eslint",
     "tauri": "tauri",

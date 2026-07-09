@@ -43,7 +43,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Setup Rust
@@ -92,11 +92,11 @@ jobs:
           name: shop-dashboard-${{ matrix.platform }}
           if-no-files-found: error
           path: |
-            src-tauri/target/release/bundle/dmg/*.dmg
-            src-tauri/target/release/bundle/macos/*.app
-            src-tauri/target/release/bundle/macos/*.app.tar.gz
-            src-tauri/target/release/bundle/msi/*.msi
-            src-tauri/target/release/bundle/nsis/*.exe
+            src-tauri/target/${{ matrix.tauri_target }}/release/bundle/dmg/*.dmg
+            src-tauri/target/${{ matrix.tauri_target }}/release/bundle/macos/*.app
+            src-tauri/target/${{ matrix.tauri_target }}/release/bundle/macos/*.app.tar.gz
+            src-tauri/target/${{ matrix.tauri_target }}/release/bundle/msi/*.msi
+            src-tauri/target/${{ matrix.tauri_target }}/release/bundle/nsis/*.exe
 
   release:
     name: Publish Release Assets
