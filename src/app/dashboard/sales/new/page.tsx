@@ -16,6 +16,7 @@ import { StokPerhiasan } from '@/types/database'
 import Image from 'next/image'
 import { useDashboardAuth, useRoutePermissionGuard } from '@/app/dashboard/dashboard-auth-context'
 import { createdByFields } from '@/lib/audit/created-by'
+import { BarcodeScanInput } from '@/components/barcode-scan-input'
 import { normalizePerhiasanForSelect } from '@/lib/perhiasan-options'
 
 export default function NewSalePage() {
@@ -76,6 +77,22 @@ export default function NewSalePage() {
     }))
     setSearchModalOpen(false)
     setSearchTerm('')
+  }
+
+  const handleStockScan = (scannedValue: string) => {
+    const normalized = scannedValue.trim()
+    if (!normalized) return
+
+    const exactMatch = stockItems.find(
+      (item) => item.seri.toLowerCase() === normalized.toLowerCase()
+    )
+
+    if (exactMatch) {
+      handleSelectStock(exactMatch)
+      return
+    }
+
+    setSearchTerm(normalized)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -468,15 +485,18 @@ export default function NewSalePage() {
               
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input
-                  type="text"
+                <BarcodeScanInput
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Cari berdasarkan seri, nama, jenis, atau model..."
+                  onValueChange={setSearchTerm}
+                  onScan={handleStockScan}
+                  placeholder="Scan barcode seri atau cari nama, jenis, model..."
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black"
                   autoFocus
                 />
               </div>
+              <p className="mt-2 text-xs text-gray-500">
+                USB scanner (keyboard mode): arahkan fokus ke kolom ini lalu scan.
+              </p>
             </div>
 
             <div className="p-6 overflow-y-auto max-h-[calc(80vh-180px)]">
