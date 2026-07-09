@@ -3,6 +3,7 @@ import type { NextConfig } from "next";
 const isDesktopBuild = process.env.TAURI === "1" || process.env.TAURI === "true";
 
 const nextConfig: NextConfig = {
+  ...(isDesktopBuild ? { output: "standalone" as const } : {}),
   images: {
     // Avoid Next image optimizer private-IP issues inside the desktop webview.
     unoptimized: isDesktopBuild,

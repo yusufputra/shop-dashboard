@@ -5,25 +5,25 @@ This repo includes a Tauri 2 shell that wraps the existing Next.js app.
 ## Architecture
 
 ```text
-┌──────────────────────────────────────┐
-│ Tauri window (WebView)               │
-│  http://localhost:3000  (dev)        │
-│  http://127.0.0.1:3721  (prod local)   │
-│  https://your-deployed-url (remote)    │
-└──────────────────────────────────────┘
+┌─────────────────────────────────────────────┐
+│ Tauri window (WebView)                      │
+│  http://localhost:3000        (dev)         │
+│  http://127.0.0.1:3721      (prod local)    │
+│  https://your-deployed-url  (remote opt-in) │
+└─────────────────────────────────────────────┘
                  │
                  ▼
-        Next.js server (API routes + UI)
+   Bundled Node sidecar + Next.js standalone server
                  │
                  ▼
-              Supabase
+              Supabase (still needs internet)
 ```
 
 ## Prerequisites
 
-1. [Node.js](https://nodejs.org/) 20+
+1. [Node.js](https://nodejs.org/) 20+ on the build machine
 2. [Rust](https://www.rust-lang.org/tools/install)
-3. macOS-only for local builds: Xcode Command Line Tools
+3. macOS builds: Xcode Command Line Tools
 
 On macOS:
 
@@ -34,7 +34,7 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
 ## Environment
 
-Copy and fill env vars before running desktop dev:
+Copy and fill env vars before building or running desktop dev:
 
 ```bash
 cp .env.local.example .env.local
@@ -45,6 +45,10 @@ Required:
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `AUTH_SESSION_SECRET`
+
+For **local desktop builds**, `.env.local` is copied into the installer at build time as `desktop-server/.env`.
+
+Important: server-side secrets are embedded in the desktop app bundle. Treat the installer like a sensitive internal artifact.
 
 ## Development
 
@@ -60,43 +64,56 @@ What happens:
 2. The Rust shell opens a window at `http://localhost:3000`
 3. `next.config.ts` disables image optimization in desktop mode to avoid Supabase private-IP errors
 
-## Production modes
+## Production: fully local desktop build (default)
 
-### Option A — Remote URL (recommended first)
+This is the main path. No remote URL required.
 
-Point the desktop shell at your deployed app. No local Node server in the installer.
+```bash
+npm run tauri:build:local
+```
+
+What this does:
+
+1. Downloads an official Node.js binary for your OS/arch into `src-tauri/binaries/`
+2. Builds Next.js with `output: "standalone"` (minimal traced `node_modules`)
+3. Prepares `dist/desktop-server/` with static assets, `public/`, and `.env`
+4. Packages everything into a `.app` / `.exe` / `.dmg` installer
+
+On launch, the desktop app:
+
+1. Starts the bundled Node sidecar
+2. Runs the bundled `server.js` on `127.0.0.1:3721`
+3. Opens the Tauri window against that local URL
+
+The shop PC does **not** need Node.js installed separately.
+
+### What is bundled
+
+| Piece | Included |
+|-------|----------|
+| Node.js runtime | Yes (sidecar) |
+| Next.js server + traced deps | Yes (`dist/desktop-server`) |
+| `.env.local` secrets | Yes (copied at build time) |
+| Supabase connectivity | No — still requires internet |
+
+### Installer output
+
+After a successful build, look in:
+
+```text
+src-tauri/target/release/bundle/
+```
+
+## Production: remote URL (optional)
+
+Only if you prefer a thin client that loads a hosted deployment:
 
 ```bash
 export SHOP_DASHBOARD_REMOTE_URL="https://your-shop-dashboard.example.com"
-npm run tauri:build
+npm run tauri:build:remote
 ```
 
-The installer loads that URL directly. Updates ship through your normal web deploy.
-
-### Option B — Bundled local server (advanced)
-
-The scaffold can spawn a local Next.js server from packaged resources on port `3721`.
-
-Current bundle includes:
-
-- `.next/`
-- `public/`
-- `package.json`
-- `next.config.ts`
-- `scripts/tauri-start-next.mjs`
-
-It does **not** yet bundle `node_modules/` or a Node runtime. Before using local mode in production you still need one of:
-
-- ship `node_modules` as extra resources, or
-- embed Node via a sidecar, or
-- require Node.js installed on the shop PC
-
-Build:
-
-```bash
-npm run build
-npm run tauri:build
-```
+Updates then ship through your normal web deploy.
 
 ## NPM scripts
 
@@ -104,7 +121,9 @@ npm run tauri:build
 |--------|---------|
 | `npm run dev:desktop` | Next dev with desktop image settings |
 | `npm run tauri:dev` | Run Tauri + Next together |
-| `npm run tauri:build` | Build desktop installer |
+| `npm run build:desktop` | Build standalone server bundle only |
+| `npm run tauri:build:local` | Full local desktop installer |
+| `npm run tauri:build:remote` | Thin client pointing at hosted URL |
 | `npm run tauri icon public/app-icon-square.png` | Regenerate app icons |
 
 ## USB barcode scanners
@@ -128,16 +147,16 @@ For serial/HID scanners later, add:
 
 ```text
 src-tauri/
-  Cargo.toml           # Rust deps
-  tauri.conf.json      # Tauri build config
-  src/lib.rs           # Window + Next.js lifecycle
-  capabilities/        # Permissions
+  Cargo.toml
+  tauri.conf.json
+  src/lib.rs                 # Window + bundled server lifecycle
+  binaries/node-{target}     # Downloaded Node sidecar (gitignored)
+  capabilities/
 scripts/
-  tauri-start-next.mjs # Production Next.js starter
-src/components/
-  barcode-scan-input.tsx
-src/lib/desktop/
-  is-tauri.ts          # Detect desktop runtime
+  download-node-sidecar.mjs  # Fetches Node binary before packaging
+  prepare-tauri-bundle.mjs   # Builds dist/desktop-server
+dist/
+  desktop-server/            # Self-contained Next.js server (gitignored)
 ```
 
 ## Troubleshooting
@@ -146,21 +165,67 @@ src/lib/desktop/
 
 Install Rust via rustup, then restart the terminal.
 
+**Build fails on `download-node-sidecar`**
+
+Ensure the build machine has internet access to `nodejs.org`.
+
 **Window opens but login/API fails**
 
-Check `.env.local` in the project root for dev, or env vars available to the packaged app for production.
+Check that `.env.local` existed when you ran `npm run tauri:build:local`.
 
 **Images not loading in desktop dev**
 
-Ensure you use `npm run tauri:dev` (sets `TAURI=1`) rather than plain `next dev` inside Tauri.
+Use `npm run tauri:dev` (sets `TAURI=1`) rather than plain `next dev` inside Tauri.
 
-**Production local build starts but shows blank page**
+**Blank window after local build**
 
-Confirm Node.js is installed and production dependencies exist beside the bundled `.next` folder, or switch to remote URL mode.
+The bundled server may still be starting. Wait a few seconds. If it persists, run the packaged app from Terminal to inspect sidecar logs.
+
+**macOS “app is damaged” or Gatekeeper issues**
+
+Sign and notarize the app before distributing outside your shop network.
 
 ## Next steps
 
-1. Try `npm run tauri:dev`
-2. Test USB scanner on sales stock search
-3. Deploy web app, then build with `SHOP_DASHBOARD_REMOTE_URL`
+1. Fill `.env.local`
+2. Run `npm run tauri:dev` for development
+3. Run `npm run tauri:build:local` for a self-contained installer
 4. Add tray icon, auto-updater, or receipt printing via Tauri plugins when needed
+
+## GitHub Actions CI
+
+Workflow: `.github/workflows/build-desktop.yml`
+
+Triggers:
+
+- manual: **Actions → Build Desktop App → Run workflow**
+- automatic: push a version tag like `v0.1.0`
+
+Build matrix:
+
+- macOS Apple Silicon (`aarch64-apple-darwin`)
+- macOS Intel (`x86_64-apple-darwin`)
+- Windows x64 (`x86_64-pc-windows-msvc`)
+
+### Required repository secrets
+
+Add these under **Settings → Secrets and variables → Actions**:
+
+| Secret | Description |
+|--------|-------------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-side Supabase key |
+| `AUTH_SESSION_SECRET` | JWT session signing secret (32+ chars) |
+
+The workflow writes them into `.env.local` before building, so the desktop bundle includes runtime config.
+
+### Artifacts
+
+Each platform job uploads installers as GitHub Actions artifacts:
+
+- macOS: `.dmg` and `.app`
+- Windows: `.msi` and `.exe`
+
+When you push a `v*` tag, the workflow also attaches all installers to a GitHub Release.
+
+Note: CI builds are unsigned by default. For public distribution, add Apple/Windows code signing later.

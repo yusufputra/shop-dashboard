@@ -6,12 +6,14 @@
     "dev": "next dev",
     "dev:desktop": "TAURI=1 next dev",
     "build": "next build",
+    "build:desktop": "TAURI=1 next build && node scripts/prepare-tauri-bundle.mjs",
     "start": "next start",
     "lint": "eslint",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build",
-    "tauri:build:remote": "SHOP_DASHBOARD_REMOTE_URL=${SHOP_DASHBOARD_REMOTE_URL:-http://localhost:3000} tauri build"
+    "tauri:build": "node scripts/download-node-sidecar.mjs && tauri build",
+    "tauri:build:local": "node scripts/download-node-sidecar.mjs && tauri build",
+    "tauri:build:remote": "SHOP_DASHBOARD_REMOTE_URL=${SHOP_DASHBOARD_REMOTE_URL} tauri build"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",

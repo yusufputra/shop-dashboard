@@ -1,15 +1,16 @@
 use std::net::TcpStream;
 use std::path::PathBuf;
-use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
 use std::thread;
 use std::time::{Duration, Instant};
 
 use tauri::{Manager, RunEvent, WebviewUrl, WebviewWindowBuilder};
+use tauri_plugin_shell::process::CommandChild;
+use tauri_plugin_shell::ShellExt;
 
 const LOCAL_PORT: u16 = 3721;
 
-struct NextServer(Mutex<Option<Child>>);
+struct NextServer(Mutex<Option<CommandChild>>);
 
 fn wait_for_port(port: u16, timeout: Duration) -> bool {
     let deadline = Instant::now() + timeout;
@@ -24,7 +25,7 @@ fn wait_for_port(port: u16, timeout: Duration) -> bool {
     false
 }
 
-fn resolve_app_root(app: &tauri::App) -> PathBuf {
+fn resolve_resource_dir(app: &tauri::App) -> PathBuf {
     if cfg!(debug_assertions) {
         return std::env::current_dir().expect("failed to resolve project root");
     }
@@ -40,29 +41,37 @@ fn resolve_remote_url() -> Option<String> {
         .filter(|value| !value.trim().is_empty())
 }
 
-fn start_next_server(app_root: &PathBuf) -> Result<Child, String> {
-    let script = app_root.join("scripts").join("tauri-start-next.mjs");
+fn resolve_server_root(resource_dir: &PathBuf) -> PathBuf {
+    if cfg!(debug_assertions) {
+        return resource_dir.join("dist").join("desktop-server");
+    }
 
-    if !script.exists() {
+    resource_dir.join("desktop-server")
+}
+
+fn start_next_server(app: &tauri::AppHandle, server_root: &PathBuf) -> Result<CommandChild, String> {
+    let server_js = server_root.join("server.js");
+
+    if !server_js.exists() {
         return Err(format!(
-            "Next.js start script not found at {}",
-            script.display()
+            "Bundled Next.js server not found at {}. Run `npm run tauri:build:local` first.",
+            server_js.display()
         ));
     }
 
-    let child = Command::new("node")
-        .arg(script)
+    let sidecar = app
+        .shell()
+        .sidecar("node")
+        .map_err(|error| format!("failed to resolve bundled Node sidecar: {error}"))?
+        .current_dir(server_root)
+        .args(["server.js"])
         .env("PORT", LOCAL_PORT.to_string())
-        .env("TAURI_APP_ROOT", app_root)
-        .current_dir(app_root)
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
+        .env("HOSTNAME", "127.0.0.1")
+        .env("NODE_ENV", "production");
+
+    let (_rx, child) = sidecar
         .spawn()
-        .map_err(|error| {
-            format!(
-                "failed to start Next.js server (is Node.js installed?): {error}"
-            )
-        })?;
+        .map_err(|error| format!("failed to start bundled Next.js server: {error}"))?;
 
     Ok(child)
 }
@@ -99,14 +108,16 @@ pub fn run() {
 
             #[cfg(not(dev))]
             {
-                let app_root = resolve_app_root(app);
-                let child = start_next_server(&app_root)?;
+                let resource_dir = resolve_resource_dir(app);
+                let server_root = resolve_server_root(&resource_dir);
+                let handle = app.handle().clone();
+                let child = start_next_server(&handle, &server_root)?;
                 app.manage(NextServer(Mutex::new(Some(child))));
 
                 let local_url = format!("http://127.0.0.1:{LOCAL_PORT}");
-                if !wait_for_port(LOCAL_PORT, Duration::from_secs(60)) {
+                if !wait_for_port(LOCAL_PORT, Duration::from_secs(90)) {
                     return Err(format!(
-                        "Next.js server did not start on {local_url} within 60 seconds"
+                        "Next.js server did not start on {local_url} within 90 seconds"
                     )
                     .into());
                 }
@@ -122,7 +133,7 @@ pub fn run() {
             if let RunEvent::Exit = event {
                 if let Some(state) = app_handle.try_state::<NextServer>() {
                     if let Ok(mut guard) = state.0.lock() {
-                        if let Some(mut child) = guard.take() {
+                        if let Some(child) = guard.take() {
                             let _ = child.kill();
                         }
                     }
