@@ -1,5 +1,6 @@
 'use client'
 
+import { alertDialog } from '@/lib/desktop/dialogs'
 import { useEffect, useState, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -20,7 +21,7 @@ import {
   validateInventoryDimensions,
 } from '@/lib/inventory-extra-fields'
 
-function NewInventoryForm() {
+async function NewInventoryForm() {
   useRoutePermissionGuard('inventory', 'create')
   const { session } = useDashboardAuth()
   const router = useRouter()
@@ -134,7 +135,7 @@ function NewInventoryForm() {
     e.preventDefault()
     const dimErr = validateInventoryDimensions(formData)
     if (dimErr) {
-      alert(dimErr)
+      await alertDialog(dimErr)
       return
     }
 
@@ -201,7 +202,7 @@ function NewInventoryForm() {
       router.push('/dashboard/inventory')
     } catch (error) {
       console.error('Error adding inventory:', error)
-      alert(error instanceof Error ? error.message : 'Gagal menambahkan data stok')
+      await alertDialog(error instanceof Error ? error.message : 'Gagal menambahkan data stok')
     } finally {
       setLoading(false)
       setUploadingImages(false)

@@ -1,5 +1,6 @@
 'use client'
 
+import { alertDialog } from '@/lib/desktop/dialogs'
 import { use, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -72,7 +73,7 @@ export default function EditSalePage({ params }: { params: Promise<{ id: string 
       })
     } catch (error) {
       console.error('Error loading sale:', error)
-      alert('Gagal memuat data penjualan')
+      await alertDialog('Gagal memuat data penjualan')
     } finally {
       setLoading(false)
     }
@@ -88,7 +89,7 @@ export default function EditSalePage({ params }: { params: Promise<{ id: string 
       if (rawPid) {
         customerId = await resolveCustomerIdByPublicId(supabase, rawPid)
         if (!customerId) {
-          alert('ID pelanggan tidak ditemukan. Kosongkan atau perbaiki ID.')
+          await alertDialog('ID pelanggan tidak ditemukan. Kosongkan atau perbaiki ID.')
           return
         }
       }
@@ -111,7 +112,7 @@ export default function EditSalePage({ params }: { params: Promise<{ id: string 
       router.push(`/dashboard/sales/${resolvedParams.id}`)
     } catch (error) {
       console.error('Error updating sale:', error)
-      alert('Gagal mengupdate data penjualan')
+      await alertDialog('Gagal mengupdate data penjualan')
     } finally {
       setSaving(false)
     }

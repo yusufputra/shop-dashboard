@@ -1,5 +1,6 @@
 'use client'
 
+import { alertDialog } from '@/lib/desktop/dialogs'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Plus, Search } from 'lucide-react'
@@ -36,7 +37,7 @@ export default function CustomersPage() {
       setRedeemRows(rRes.data ?? [])
     } catch (e) {
       console.error(e)
-      alert('Gagal memuat data pelanggan')
+      await alertDialog('Gagal memuat data pelanggan')
     } finally {
       setLoading(false)
     }

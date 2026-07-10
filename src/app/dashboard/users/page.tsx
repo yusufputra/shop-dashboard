@@ -1,5 +1,6 @@
 'use client'
 
+import { alertDialog, confirmDialog } from '@/lib/desktop/dialogs'
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { Plus, Pencil, Trash2, Shield } from 'lucide-react'
@@ -40,11 +41,11 @@ export default function UsersPage() {
   }, [load])
 
   async function handleDelete(userId: string, nama: string) {
-    if (!confirm(`Hapus pengguna "${nama}"? Tindakan ini tidak bisa dibatalkan.`)) return
+    if (!await confirmDialog(`Hapus pengguna "${nama}"? Tindakan ini tidak bisa dibatalkan.`)) return
     const res = await fetch(`/api/users/${userId}`, { method: 'DELETE' })
     const data = await res.json().catch(() => ({}))
     if (!res.ok) {
-      alert(typeof data.error === 'string' ? data.error : 'Gagal menghapus')
+      await alertDialog(typeof data.error === 'string' ? data.error : 'Gagal menghapus')
       return
     }
     void load()

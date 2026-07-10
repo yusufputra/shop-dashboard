@@ -1,5 +1,6 @@
 'use client'
 
+import { alertDialog } from '@/lib/desktop/dialogs'
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -99,7 +100,7 @@ export default function NewSalePage() {
     e.preventDefault()
     
     if (!selectedStock) {
-      alert('Pilih item stok terlebih dahulu')
+      await alertDialog('Pilih item stok terlebih dahulu')
       return
     }
 
@@ -111,7 +112,7 @@ export default function NewSalePage() {
       if (rawPid) {
         customerId = await resolveCustomerIdByPublicId(supabase, rawPid)
         if (!customerId) {
-          alert('Nomor pelanggan tidak ditemukan. Kosongkan atau perbaiki nomor dari menu Pelanggan.')
+          await alertDialog('Nomor pelanggan tidak ditemukan. Kosongkan atau perbaiki nomor dari menu Pelanggan.')
           return
         }
       }
@@ -160,7 +161,7 @@ export default function NewSalePage() {
           })
           if (ledgerError) {
             console.error(ledgerError)
-            alert(
+            await alertDialog(
               'Penjualan tersimpan, tetapi poin gagal dicatat (kemungkinan duplikat nomor). Hubungi admin jika perlu.'
             )
           }
@@ -170,7 +171,7 @@ export default function NewSalePage() {
       router.push('/dashboard/sales')
     } catch (error) {
       console.error('Error adding sale:', error)
-      alert('Gagal menambahkan data penjualan')
+      await alertDialog('Gagal menambahkan data penjualan')
     } finally {
       setLoading(false)
     }

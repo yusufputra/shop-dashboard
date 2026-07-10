@@ -1,5 +1,6 @@
 'use client'
 
+import { alertDialog } from '@/lib/desktop/dialogs'
 import { useEffect, useState, use } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -48,7 +49,7 @@ export default function EditOrderPage({ params }: { params: Promise<{ no: string
         })
       } catch (error) {
         console.error('Error loading order:', error)
-        alert('Gagal memuat data')
+        await alertDialog('Gagal memuat data')
         router.push('/dashboard/orders')
       } finally {
         setLoading(false)
@@ -85,7 +86,7 @@ export default function EditOrderPage({ params }: { params: Promise<{ no: string
       router.push(`/dashboard/orders/${no}`)
     } catch (error) {
       console.error('Error updating order:', error)
-      alert('Gagal mengupdate data')
+      await alertDialog('Gagal mengupdate data')
     } finally {
       setSaving(false)
     }

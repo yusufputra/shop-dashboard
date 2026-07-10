@@ -1,5 +1,6 @@
 'use client'
 
+import { alertDialog, confirmDialog } from '@/lib/desktop/dialogs'
 import { useEffect, useState, use } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -57,7 +58,7 @@ export default function GadaiDetailPage({
       setItem(data as GadaiDetail)
     } catch (error) {
       console.error('Error loading gadai:', error)
-      alert('Gagal memuat data')
+      await alertDialog('Gagal memuat data')
       router.push('/dashboard/gadai')
     } finally {
       setLoading(false)
@@ -70,7 +71,7 @@ export default function GadaiDetailPage({
   }, [noInvoice])
 
   async function handleDelete() {
-    if (!confirm('Apakah Anda yakin ingin menghapus data gadai ini?')) return
+    if (!await confirmDialog('Apakah Anda yakin ingin menghapus data gadai ini?')) return
 
     setDeleting(true)
     try {
@@ -88,7 +89,7 @@ export default function GadaiDetailPage({
       router.push('/dashboard/gadai')
     } catch (error) {
       console.error('Error deleting gadai:', error)
-      alert('Gagal menghapus data')
+      await alertDialog('Gagal menghapus data')
     } finally {
       setDeleting(false)
     }

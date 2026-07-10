@@ -1,5 +1,6 @@
 'use client'
 
+import { alertDialog, confirmDialog } from '@/lib/desktop/dialogs'
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Plus, Search, Edit, Trash2, Eye } from 'lucide-react'
@@ -50,7 +51,7 @@ export default function PurchasesPage() {
   }, [searchTerm, purchases])
 
   async function handleDelete(seri: string) {
-    if (!confirm('Apakah Anda yakin ingin menghapus data ini?')) return
+    if (!await confirmDialog('Apakah Anda yakin ingin menghapus data ini?')) return
 
     try {
       const { error } = await supabase
@@ -62,7 +63,7 @@ export default function PurchasesPage() {
       loadPurchases()
     } catch (error) {
       console.error('Error deleting purchase:', error)
-      alert('Gagal menghapus data')
+      await alertDialog('Gagal menghapus data')
     }
   }
 

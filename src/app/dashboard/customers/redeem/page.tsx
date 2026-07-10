@@ -1,5 +1,6 @@
 'use client'
 
+import { alertDialog } from '@/lib/desktop/dialogs'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, Award, MinusCircle, Search } from 'lucide-react'
@@ -48,7 +49,7 @@ export default function RedeemPointPage() {
       setRedeemHistory((data ?? []) as RedeemRow[])
     } catch (e) {
       console.error(e)
-      alert('Gagal memuat riwayat redeem')
+      await alertDialog('Gagal memuat riwayat redeem')
     } finally {
       setHistoryLoading(false)
     }
@@ -108,7 +109,7 @@ export default function RedeemPointPage() {
       setLookupMessage(null)
     } catch (e) {
       console.error(e)
-      alert('Gagal memuat data pelanggan')
+      await alertDialog('Gagal memuat data pelanggan')
     } finally {
       setLookupLoading(false)
     }
@@ -117,23 +118,23 @@ export default function RedeemPointPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!can('point_redeem', 'create')) {
-      alert('Anda tidak punya izin untuk melakukan redeem poin')
+      await alertDialog('Anda tidak punya izin untuk melakukan redeem poin')
       return
     }
     if (!customerId || availablePoints === null) {
-      alert('Cari pelanggan terlebih dahulu')
+      await alertDialog('Cari pelanggan terlebih dahulu')
       return
     }
 
     const points = parseInt(pointsInput, 10)
     if (!Number.isFinite(points) || points <= 0) {
-      alert('Jumlah poin harus bilangan bulat positif')
+      await alertDialog('Jumlah poin harus bilangan bulat positif')
       return
     }
 
     const redeemablePoints = displayPoints(availablePoints)
     if (points > redeemablePoints) {
-      alert(`Poin tidak cukup. Saldo tersedia: ${redeemablePoints}`)
+      await alertDialog(`Poin tidak cukup. Saldo tersedia: ${redeemablePoints}`)
       return
     }
 
@@ -152,10 +153,10 @@ export default function RedeemPointPage() {
       setKeterangan('')
       setAvailablePoints(availablePoints - points)
       await loadHistory()
-      alert('Redeem poin berhasil disimpan')
+      await alertDialog('Redeem poin berhasil disimpan')
     } catch (err) {
       console.error(err)
-      alert('Gagal menyimpan redeem poin')
+      await alertDialog('Gagal menyimpan redeem poin')
     } finally {
       setSubmitting(false)
     }

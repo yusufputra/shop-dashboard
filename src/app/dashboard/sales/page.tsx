@@ -1,5 +1,6 @@
 'use client'
 
+import { alertDialog, confirmDialog } from '@/lib/desktop/dialogs'
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Plus, Search, Eye, Trash2 } from 'lucide-react'
@@ -73,7 +74,7 @@ export default function SalesPage() {
   }, [searchTerm, sales])
 
   const handleDelete = async (no: string) => {
-    if (!confirm('Apakah Anda yakin ingin menghapus data penjualan ini?')) return
+    if (!await confirmDialog('Apakah Anda yakin ingin menghapus data penjualan ini?')) return
 
     try {
       // Find the sale to get stok_seri
@@ -99,7 +100,7 @@ export default function SalesPage() {
       loadSales()
     } catch (error) {
       console.error('Error deleting sale:', error)
-      alert('Gagal menghapus data penjualan')
+      await alertDialog('Gagal menghapus data penjualan')
     }
   }
 

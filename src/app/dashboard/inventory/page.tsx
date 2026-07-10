@@ -1,5 +1,6 @@
 'use client'
 
+import { alertDialog, confirmDialog } from '@/lib/desktop/dialogs'
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Plus, Search, Edit, Trash2, Eye, Filter } from 'lucide-react'
@@ -103,7 +104,7 @@ export default function InventoryPage() {
   }, [searchTerm, filterTanggalMasuk, filterTanggalKeluar, inventory])
 
   async function handleDelete(seri: string) {
-    if (!confirm('Apakah Anda yakin ingin menghapus data ini?')) return
+    if (!await confirmDialog('Apakah Anda yakin ingin menghapus data ini?')) return
 
     try {
       const { error } = await supabase
@@ -115,7 +116,7 @@ export default function InventoryPage() {
       loadInventory()
     } catch (error) {
       console.error('Error deleting item:', error)
-      alert('Gagal menghapus data')
+      await alertDialog('Gagal menghapus data')
     }
   }
 

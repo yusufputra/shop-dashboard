@@ -1,5 +1,6 @@
 'use client'
 
+import { alertDialog } from '@/lib/desktop/dialogs'
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -71,14 +72,14 @@ export default function NewPurchasePage() {
       if (rawPid) {
         customerId = await resolveCustomerIdByPublicId(supabase, rawPid)
         if (!customerId) {
-          alert('Nomor pelanggan tidak ditemukan. Kosongkan atau perbaiki nomor dari menu Pelanggan.')
+          await alertDialog('Nomor pelanggan tidak ditemukan. Kosongkan atau perbaiki nomor dari menu Pelanggan.')
           return
         }
       }
 
       const kadarNum = parseKadarKSelect(formData.kadar)
       if (kadarNum == null) {
-        alert('Pilih kadar')
+        await alertDialog('Pilih kadar')
         return
       }
 
@@ -103,7 +104,7 @@ export default function NewPurchasePage() {
       router.push('/dashboard/purchases')
     } catch (error) {
       console.error('Error adding purchase:', error)
-      alert('Gagal menambahkan data pembelian')
+      await alertDialog('Gagal menambahkan data pembelian')
     } finally {
       setLoading(false)
     }

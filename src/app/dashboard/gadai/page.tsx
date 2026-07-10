@@ -1,5 +1,6 @@
 'use client'
 
+import { alertDialog, confirmDialog } from '@/lib/desktop/dialogs'
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Plus, Search, Edit, Trash2, Eye } from 'lucide-react'
@@ -54,7 +55,7 @@ export default function GadaiPage() {
   }, [searchTerm, items])
 
   async function handleDelete(noInvoice: string) {
-    if (!confirm('Apakah Anda yakin ingin menghapus data gadai ini?')) return
+    if (!await confirmDialog('Apakah Anda yakin ingin menghapus data gadai ini?')) return
 
     try {
       const { data: row } = await supabase
@@ -78,7 +79,7 @@ export default function GadaiPage() {
       loadItems()
     } catch (error) {
       console.error('Error deleting gadai:', error)
-      alert('Gagal menghapus data')
+      await alertDialog('Gagal menghapus data')
     }
   }
 

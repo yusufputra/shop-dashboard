@@ -1,5 +1,6 @@
 'use client'
 
+import { alertDialog } from '@/lib/desktop/dialogs'
 import { useState } from 'react'
 import { Calculator, Info } from 'lucide-react'
 import { GOLD_STANDARDS, calculateGoldPurity, formatWeight } from '@/lib/utils'
@@ -32,7 +33,7 @@ export default function CalculatorPage() {
   })
   const [mixResult, setMixResult] = useState<number | null>(null)
 
-  const handlePurityCalculate = () => {
+  const handlePurityCalculate = async () => {
     try {
       const result = calculateGoldPurity(
         parseFloat(purityInputs.weight),
@@ -41,11 +42,11 @@ export default function CalculatorPage() {
       )
       setPurityResult(result)
     } catch {
-      alert('Gagal menghitung. Periksa kembali input Anda.')
+      await alertDialog('Gagal menghitung. Periksa kembali input Anda.')
     }
   }
 
-  const handleMixCalculate = () => {
+  const handleMixCalculate = async () => {
     try {
       const goldPercentage = parseFloat(mixInputs.gold) || 0
       const totalPercentage = 
@@ -56,7 +57,7 @@ export default function CalculatorPage() {
         (parseFloat(mixInputs.paladium) || 0)
 
       if (Math.abs(totalPercentage - 100) > 0.1) {
-        alert('Total campuran harus 100%')
+        await alertDialog('Total campuran harus 100%')
         return
       }
 
@@ -74,7 +75,7 @@ export default function CalculatorPage() {
 
       setMixResult(closestKarat.karat)
     } catch {
-      alert('Gagal menghitung. Periksa kembali input Anda.')
+      await alertDialog('Gagal menghitung. Periksa kembali input Anda.')
     }
   }
 

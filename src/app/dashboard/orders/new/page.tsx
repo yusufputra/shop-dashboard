@@ -1,5 +1,6 @@
 'use client'
 
+import { alertDialog } from '@/lib/desktop/dialogs'
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -47,7 +48,7 @@ export default function NewOrderPage() {
       router.push('/dashboard/orders')
     } catch (error) {
       console.error('Error adding order:', error)
-      alert('Gagal menambahkan pesanan')
+      await alertDialog('Gagal menambahkan pesanan')
     } finally {
       setLoading(false)
     }

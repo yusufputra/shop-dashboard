@@ -1,5 +1,6 @@
 'use client'
 
+import { alertDialog, confirmDialog } from '@/lib/desktop/dialogs'
 import { use, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -78,14 +79,14 @@ export default function SaleDetailPage({ params }: { params: Promise<{ id: strin
       }
     } catch (error) {
       console.error('Error loading sale:', error)
-      alert('Gagal memuat data penjualan')
+      await alertDialog('Gagal memuat data penjualan')
     } finally {
       setLoading(false)
     }
   }
 
   const handleDelete = async () => {
-    if (!confirm('Apakah Anda yakin ingin menghapus data penjualan ini?')) return
+    if (!await confirmDialog('Apakah Anda yakin ingin menghapus data penjualan ini?')) return
 
     setDeleting(true)
     try {
@@ -117,7 +118,7 @@ export default function SaleDetailPage({ params }: { params: Promise<{ id: strin
       router.push('/dashboard/sales')
     } catch (error) {
       console.error('Error deleting sale:', error)
-      alert('Gagal menghapus data penjualan')
+      await alertDialog('Gagal menghapus data penjualan')
     } finally {
       setDeleting(false)
     }

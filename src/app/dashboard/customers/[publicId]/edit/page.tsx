@@ -1,5 +1,6 @@
 'use client'
 
+import { alertDialog } from '@/lib/desktop/dialogs'
 import { use, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -56,7 +57,7 @@ export default function EditCustomerPage({ params }: { params: Promise<{ publicI
         })
       } catch (e) {
         console.error(e)
-        alert('Gagal memuat data pelanggan')
+        await alertDialog('Gagal memuat data pelanggan')
         router.push('/dashboard/customers')
       } finally {
         setLoading(false)
@@ -90,7 +91,7 @@ export default function EditCustomerPage({ params }: { params: Promise<{ publicI
       router.push(`/dashboard/customers/${customerPublicIdPath(publicId)}`)
     } catch (err) {
       console.error(err)
-      alert('Gagal menyimpan perubahan')
+      await alertDialog('Gagal menyimpan perubahan')
     } finally {
       setSaving(false)
     }

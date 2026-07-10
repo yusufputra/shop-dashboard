@@ -1,5 +1,6 @@
 'use client'
 
+import { alertDialog, confirmDialog } from '@/lib/desktop/dialogs'
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Plus, Pencil, Trash2 } from 'lucide-react'
@@ -53,11 +54,11 @@ export default function UserGroupsPage() {
   }, [load])
 
   async function handleDelete(groupId: string, name: string) {
-    if (!confirm(`Hapus grup "${name}"? Pengguna akan dilepas dari grup ini.`)) return
+    if (!await confirmDialog(`Hapus grup "${name}"? Pengguna akan dilepas dari grup ini.`)) return
     const res = await fetch(`/api/rbac/groups/${groupId}`, { method: 'DELETE' })
     const data = await res.json().catch(() => ({}))
     if (!res.ok) {
-      alert(typeof data.error === 'string' ? data.error : 'Gagal menghapus')
+      await alertDialog(typeof data.error === 'string' ? data.error : 'Gagal menghapus')
       return
     }
     void load()

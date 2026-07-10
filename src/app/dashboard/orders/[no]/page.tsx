@@ -1,5 +1,6 @@
 'use client'
 
+import { alertDialog, confirmDialog } from '@/lib/desktop/dialogs'
 import { useEffect, useState, use } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -30,7 +31,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ no: stri
       setOrder(data)
     } catch (error) {
       console.error('Error loading order:', error)
-      alert('Gagal memuat data')
+      await alertDialog('Gagal memuat data')
       router.push('/dashboard/orders')
     } finally {
       setLoading(false)
@@ -43,7 +44,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ no: stri
   }, [no])
 
   async function handleDelete() {
-    if (!confirm('Apakah Anda yakin ingin menghapus pesanan ini?')) return
+    if (!await confirmDialog('Apakah Anda yakin ingin menghapus pesanan ini?')) return
 
     setDeleting(true)
     try {
@@ -57,7 +58,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ no: stri
       router.push('/dashboard/orders')
     } catch (error) {
       console.error('Error deleting order:', error)
-      alert('Gagal menghapus data')
+      await alertDialog('Gagal menghapus data')
     } finally {
       setDeleting(false)
     }

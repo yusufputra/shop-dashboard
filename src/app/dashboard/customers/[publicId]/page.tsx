@@ -1,5 +1,6 @@
 'use client'
 
+import { alertDialog } from '@/lib/desktop/dialogs'
 import { use, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -98,7 +99,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ publi
         setPurchases(pRes.data ?? [])
       } catch (e) {
         console.error(e)
-        alert('Gagal memuat detail pelanggan')
+        await alertDialog('Gagal memuat detail pelanggan')
         router.push('/dashboard/customers')
       } finally {
         setLoading(false)
@@ -164,9 +165,9 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ publi
           <button
             type="button"
             onClick={() => {
-              void downloadCustomerCardPng(customer, displayId).catch(() =>
-                alert('Gagal membuat kartu. Coba lagi.')
-              )
+              void downloadCustomerCardPng(customer, displayId).catch(() => {
+                void alertDialog('Gagal membuat kartu. Coba lagi.')
+              })
             }}
             className="inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-amber-500 to-yellow-500 px-4 py-2.5 text-sm font-medium text-white shadow-md transition-all hover:from-amber-600 hover:to-yellow-600"
           >

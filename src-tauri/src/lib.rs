@@ -95,6 +95,7 @@ fn create_main_window(app: &tauri::App, url: &str) -> tauri::Result<()> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             if let Some(remote_url) = resolve_remote_url() {
                 create_main_window(app, remote_url.trim())?;

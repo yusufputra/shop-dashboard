@@ -1,5 +1,6 @@
 'use client'
 
+import { alertDialog } from '@/lib/desktop/dialogs'
 import { useEffect, useState, use } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -80,7 +81,7 @@ export default function EditGadaiPage({
         })
       } catch (error) {
         console.error('Error loading gadai:', error)
-        alert('Gagal memuat data')
+        await alertDialog('Gagal memuat data')
         router.push('/dashboard/gadai')
       } finally {
         setLoading(false)
@@ -121,14 +122,14 @@ export default function EditGadaiPage({
       if (rawPid) {
         customerId = await resolveCustomerIdByPublicId(supabase, rawPid)
         if (!customerId) {
-          alert('Member ID tidak ditemukan. Kosongkan atau perbaiki ID.')
+          await alertDialog('Member ID tidak ditemukan. Kosongkan atau perbaiki ID.')
           return
         }
       }
 
       const kadarNum = formData.kadar ? parseKadarKSelect(formData.kadar) : null
       if (formData.kadar && kadarNum == null) {
-        alert('Kadar tidak valid')
+        await alertDialog('Kadar tidak valid')
         return
       }
 
@@ -186,7 +187,7 @@ export default function EditGadaiPage({
       router.push(`/dashboard/gadai/${invoicePath}`)
     } catch (error) {
       console.error('Error updating gadai:', error)
-      alert('Gagal mengupdate data')
+      await alertDialog('Gagal mengupdate data')
     } finally {
       setSaving(false)
       setUploadingPhoto(false)

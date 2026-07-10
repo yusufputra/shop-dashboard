@@ -1,5 +1,6 @@
 'use client'
 
+import { alertDialog } from '@/lib/desktop/dialogs'
 import { useEffect, useState, use } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -78,7 +79,7 @@ export default function EditInventoryPage({ params }: { params: Promise<{ seri: 
       }
     } catch (error) {
       console.error('Error loading item:', error)
-      alert('Gagal memuat data')
+      await alertDialog('Gagal memuat data')
       router.push('/dashboard/inventory')
     } finally {
       setLoading(false)
@@ -134,7 +135,7 @@ export default function EditInventoryPage({ params }: { params: Promise<{ seri: 
     e.preventDefault()
     const dimErr = validateInventoryDimensions(formData)
     if (dimErr) {
-      alert(dimErr)
+      await alertDialog(dimErr)
       return
     }
 
@@ -208,7 +209,7 @@ export default function EditInventoryPage({ params }: { params: Promise<{ seri: 
       router.push(`/dashboard/inventory/${seri}`)
     } catch (error) {
       console.error('Error updating inventory:', error)
-      alert(error instanceof Error ? error.message : 'Gagal mengupdate data stok')
+      await alertDialog(error instanceof Error ? error.message : 'Gagal mengupdate data stok')
     } finally {
       setSaving(false)
       setUploadingImages(false)

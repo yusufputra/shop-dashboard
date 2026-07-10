@@ -1,5 +1,6 @@
 'use client'
 
+import { alertDialog, confirmDialog } from '@/lib/desktop/dialogs'
 import { useEffect, useState, use } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -54,7 +55,7 @@ export default function PurchaseDetailPage({ params }: { params: Promise<{ seri:
       }
     } catch (error) {
       console.error('Error loading purchase:', error)
-      alert('Gagal memuat data')
+      await alertDialog('Gagal memuat data')
       router.push('/dashboard/purchases')
     } finally {
       setLoading(false)
@@ -67,7 +68,7 @@ export default function PurchaseDetailPage({ params }: { params: Promise<{ seri:
   }, [seri])
 
   async function handleDelete() {
-    if (!confirm('Apakah Anda yakin ingin menghapus data ini?')) return
+    if (!await confirmDialog('Apakah Anda yakin ingin menghapus data ini?')) return
 
     setDeleting(true)
     try {
@@ -81,7 +82,7 @@ export default function PurchaseDetailPage({ params }: { params: Promise<{ seri:
       router.push('/dashboard/purchases')
     } catch (error) {
       console.error('Error deleting purchase:', error)
-      alert('Gagal menghapus data')
+      await alertDialog('Gagal menghapus data')
     } finally {
       setDeleting(false)
     }

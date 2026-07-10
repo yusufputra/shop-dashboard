@@ -1,5 +1,6 @@
 'use client'
 
+import { alertDialog } from '@/lib/desktop/dialogs'
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -32,7 +33,7 @@ export default function NewCustomerPage() {
     try {
       const public_id = formData.public_id.trim()
       if (!public_id) {
-        alert('Nomor pelanggan wajib diisi.')
+        await alertDialog('Nomor pelanggan wajib diisi.')
         return
       }
 
@@ -47,11 +48,11 @@ export default function NewCustomerPage() {
 
       if (error) {
         if (error.code === '23505') {
-          alert('Nomor pelanggan sudah dipakai. Gunakan nomor lain.')
+          await alertDialog('Nomor pelanggan sudah dipakai. Gunakan nomor lain.')
           return
         }
         console.error(error)
-        alert('Gagal menyimpan pelanggan')
+        await alertDialog('Gagal menyimpan pelanggan')
         return
       }
 

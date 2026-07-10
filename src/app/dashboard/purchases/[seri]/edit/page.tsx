@@ -1,5 +1,6 @@
 'use client'
 
+import { alertDialog } from '@/lib/desktop/dialogs'
 import { useEffect, useState, use } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -53,7 +54,7 @@ export default function EditPurchasePage({ params }: { params: Promise<{ seri: s
         })
       } catch (error) {
         console.error('Error loading purchase:', error)
-        alert('Gagal memuat data')
+        await alertDialog('Gagal memuat data')
         router.push('/dashboard/purchases')
       } finally {
         setLoading(false)
@@ -73,7 +74,7 @@ export default function EditPurchasePage({ params }: { params: Promise<{ seri: s
       if (rawPid) {
         customerId = await resolveCustomerIdByPublicId(supabase, rawPid)
         if (!customerId) {
-          alert('ID pelanggan tidak ditemukan. Kosongkan atau perbaiki ID.')
+          await alertDialog('ID pelanggan tidak ditemukan. Kosongkan atau perbaiki ID.')
           return
         }
       }
@@ -99,7 +100,7 @@ export default function EditPurchasePage({ params }: { params: Promise<{ seri: s
       router.push(`/dashboard/purchases/${seri}`)
     } catch (error) {
       console.error('Error updating purchase:', error)
-      alert('Gagal mengupdate data')
+      await alertDialog('Gagal mengupdate data')
     } finally {
       setSaving(false)
     }

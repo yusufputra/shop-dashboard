@@ -1,5 +1,6 @@
 'use client'
 
+import { alertDialog } from '@/lib/desktop/dialogs'
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -87,14 +88,14 @@ export default function NewGadaiPage() {
       if (rawPid) {
         customerId = await resolveCustomerIdByPublicId(supabase, rawPid)
         if (!customerId) {
-          alert('Member ID tidak ditemukan. Kosongkan atau perbaiki dari menu Pelanggan.')
+          await alertDialog('Member ID tidak ditemukan. Kosongkan atau perbaiki dari menu Pelanggan.')
           return
         }
       }
 
       const kadarNum = formData.kadar ? parseKadarKSelect(formData.kadar) : null
       if (formData.kadar && kadarNum == null) {
-        alert('Kadar tidak valid')
+        await alertDialog('Kadar tidak valid')
         return
       }
 
@@ -126,7 +127,7 @@ export default function NewGadaiPage() {
       router.push('/dashboard/gadai')
     } catch (error) {
       console.error('Error adding gadai:', error)
-      alert('Gagal menambahkan data gadai')
+      await alertDialog('Gagal menambahkan data gadai')
     } finally {
       setLoading(false)
     }
