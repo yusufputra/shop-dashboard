@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Save } from 'lucide-react'
 import Link from 'next/link'
-import { generateSerialNumber } from '@/lib/utils'
+import { generateSerialNumber, KADAR_K_OPTIONS } from '@/lib/utils'
 import { useRoutePermissionGuard } from '@/app/dashboard/dashboard-auth-context'
 
 export default function NewOrderPage() {
@@ -154,11 +154,11 @@ export default function NewOrderPage() {
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none text-black"
             >
               <option value="">Pilih Bahan</option>
-              <option value="Emas Kuning 18K">Emas Kuning 18K</option>
-              <option value="Emas Kuning 14K">Emas Kuning 14K</option>
-              <option value="Emas Merah 18K">Emas Merah 18K</option>
-              <option value="Emas Putih 18K">Emas Putih 18K</option>
-              <option value="Perak">Perak</option>
+              {KADAR_K_OPTIONS.map((k) => (
+                <option key={k} value={k}>
+                  {k}
+                </option>
+              ))}
             </select>
           </div>
 
