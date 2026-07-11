@@ -73,8 +73,8 @@ jobs:
             exit 1
           fi
 
-          matrix=$(jq -n --argjson include "$include" '{include: $include}')
-          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          matrix=$(jq -n --argjson include "$include" -c '{include: $include}')
+          echo "matrix=${matrix}" >> "$GITHUB_OUTPUT"
 
   build:
     name: Build (${{ matrix.platform }})
