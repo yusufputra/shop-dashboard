@@ -21,7 +21,7 @@ import {
   validateInventoryDimensions,
 } from '@/lib/inventory-extra-fields'
 
-async function NewInventoryForm() {
+function NewInventoryForm() {
   useRoutePermissionGuard('inventory', 'create')
   const { session } = useDashboardAuth()
   const router = useRouter()
