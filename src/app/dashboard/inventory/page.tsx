@@ -1,15 +1,18 @@
 'use client'
 
 import { alertDialog, confirmDialog } from '@/lib/desktop/dialogs'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Plus, Search, Edit, Trash2, Eye, Filter } from 'lucide-react'
+import { Plus, Search, Edit, Trash2, Eye, Filter, Download } from 'lucide-react'
 import { formatCreatedByLabel } from '@/lib/audit/created-by'
-import { warnaLabel } from '@/lib/warna-options'
-import { formatCurrency, formatWeight } from '@/lib/utils'
+import { warnaLabel, WARNA_OPTIONS } from '@/lib/warna-options'
+import { PERHIASAN_OPTIONS } from '@/lib/perhiasan-options'
+import { formatCurrency, formatWeight, KADAR_K_OPTIONS } from '@/lib/utils'
 import { StokPerhiasan } from '@/types/database'
 import Link from 'next/link'
 import { useDashboardAuth } from '@/app/dashboard/dashboard-auth-context'
+import { DateFilterInput } from '@/components/date-filter-input'
+import * as XLSX from 'xlsx'
 
 interface StokWithPurchase extends StokPerhiasan {
   sale_date?: string | null  // Date when sold to customer
@@ -24,7 +27,30 @@ export default function InventoryPage() {
   const [showFilters, setShowFilters] = useState(false)
   const [filterTanggalMasuk, setFilterTanggalMasuk] = useState('')
   const [filterTanggalKeluar, setFilterTanggalKeluar] = useState('')
+  const [filterStatus, setFilterStatus] = useState('')
+  const [filterKadar, setFilterKadar] = useState('')
+  const [filterWarna, setFilterWarna] = useState('')
+  const [filterPerhiasan, setFilterPerhiasan] = useState('')
+  const [filterKodePabrik, setFilterKodePabrik] = useState('')
   const supabase = createClient()
+
+  const kadarOptions = useMemo(() => {
+    const fromData = inventory.map(item => item.jenis).filter(Boolean)
+    const unique = [...new Set([...KADAR_K_OPTIONS, ...fromData])]
+    return unique.sort((a, b) => {
+      const numA = parseInt(a, 10)
+      const numB = parseInt(b, 10)
+      if (!Number.isNaN(numA) && !Number.isNaN(numB)) return numA - numB
+      return a.localeCompare(b)
+    })
+  }, [inventory])
+
+  const kodePabrikOptions = useMemo(() => {
+    const values = inventory
+      .map(item => item.kode_pabrik?.trim())
+      .filter((v): v is string => Boolean(v))
+    return [...new Set(values)].sort((a, b) => a.localeCompare(b))
+  }, [inventory])
 
   const loadInventory = useCallback(async () => {
     try {
@@ -48,17 +74,10 @@ export default function InventoryPage() {
         salesData?.map(s => [s.stok_seri, s.tanggal]) || []
       )
 
-      console.log('Sales Map:', Object.fromEntries(salesMap))
-
       // Merge the data
       const mergedData = stockData?.map(item => {
         const saleDate = item.status === 'sold' ? salesMap.get(item.seri) : null
-        
-        // Debug: Log sold items
-        if (item.status === 'sold') {
-          console.log(`Sold Item ${item.seri}: found sale date=${saleDate}`)
-        }
-        
+
         return {
           ...item,
           sale_date: saleDate
@@ -95,13 +114,111 @@ export default function InventoryPage() {
 
     // Filter by Tanggal Keluar (sale date)
     if (filterTanggalKeluar) {
-      filtered = filtered.filter(item => 
+      filtered = filtered.filter(item =>
         item.sale_date === filterTanggalKeluar
       )
     }
 
+    if (filterStatus) {
+      filtered = filtered.filter(item => item.status === filterStatus)
+    }
+
+    if (filterKadar) {
+      filtered = filtered.filter(item => item.jenis === filterKadar)
+    }
+
+    if (filterWarna) {
+      filtered = filtered.filter(item => item.warna === filterWarna)
+    }
+
+    if (filterPerhiasan) {
+      filtered = filtered.filter(item => item.perhiasan === filterPerhiasan)
+    }
+
+    if (filterKodePabrik) {
+      filtered = filtered.filter(item => (item.kode_pabrik?.trim() ?? '') === filterKodePabrik)
+    }
+
     setFilteredInventory(filtered)
-  }, [searchTerm, filterTanggalMasuk, filterTanggalKeluar, inventory])
+  }, [
+    searchTerm,
+    filterTanggalMasuk,
+    filterTanggalKeluar,
+    filterStatus,
+    filterKadar,
+    filterWarna,
+    filterPerhiasan,
+    filterKodePabrik,
+    inventory,
+  ])
+
+  const hasActiveFilters =
+    filterTanggalMasuk ||
+    filterTanggalKeluar ||
+    filterStatus ||
+    filterKadar ||
+    filterWarna ||
+    filterPerhiasan ||
+    filterKodePabrik
+
+  function resetFilters() {
+    setFilterTanggalMasuk('')
+    setFilterTanggalKeluar('')
+    setFilterStatus('')
+    setFilterKadar('')
+    setFilterWarna('')
+    setFilterPerhiasan('')
+    setFilterKodePabrik('')
+  }
+
+  function exportToExcel() {
+    const exportData = filteredInventory.map(item => ({
+      'Seri': item.seri,
+      'Tanggal Masuk': new Date(item.tanggal).toLocaleDateString('id-ID'),
+      'Tanggal Keluar': item.sale_date
+        ? new Date(item.sale_date).toLocaleDateString('id-ID')
+        : '',
+      'Status': item.status === 'sold' ? 'Terjual' : 'Tersedia',
+      'Kadar': item.jenis,
+      'Warna': item.warna ? warnaLabel(item.warna) : '',
+      'Perhiasan': item.perhiasan,
+      'Kode Pabrik': item.kode_pabrik?.trim() ?? '',
+      'Model': item.model,
+      'Fyen': item.fyen?.trim() ?? '',
+      'Berat': Number(item.berat),
+      'Harga': Number(item.harga),
+      'Dibuat oleh': formatCreatedByLabel(item.created_by_nama),
+    }))
+
+    const summary = [
+      {},
+      { 'Seri': 'RINGKASAN' },
+      { 'Seri': 'Total Item', 'Harga': filteredInventory.length },
+      {
+        'Seri': 'Tersedia',
+        'Harga': filteredInventory.filter(item => item.status === 'available').length,
+      },
+      {
+        'Seri': 'Terjual',
+        'Harga': filteredInventory.filter(item => item.status === 'sold').length,
+      },
+      {
+        'Seri': 'Total Berat',
+        'Berat': filteredInventory.reduce((sum, item) => sum + Number(item.berat), 0),
+      },
+      {
+        'Seri': 'Total Nilai',
+        'Harga': filteredInventory.reduce((sum, item) => sum + Number(item.harga), 0),
+      },
+    ]
+
+    const ws = XLSX.utils.json_to_sheet([...exportData, ...summary])
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Stok Perhiasan')
+
+    const dateStamp = new Date().toISOString().split('T')[0]
+    XLSX.writeFile(wb, `stok-perhiasan-${dateStamp}.xlsx`)
+  }
 
   async function handleDelete(seri: string) {
     if (!await confirmDialog('Apakah Anda yakin ingin menghapus data ini?')) return
@@ -160,47 +277,114 @@ export default function InventoryPage() {
           />
         </div>
 
-        {/* Filter Toggle Button */}
-        <button
-          onClick={() => setShowFilters(!showFilters)}
-          className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-        >
-          <Filter className="w-4 h-4" />
-          <span>{showFilters ? 'Sembunyikan Filter' : 'Tampilkan Filter'}</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+          >
+            <Filter className="w-4 h-4" />
+            <span>{showFilters ? 'Sembunyikan Filter' : 'Tampilkan Filter'}</span>
+          </button>
+          <button
+            onClick={exportToExcel}
+            disabled={filteredInventory.length === 0}
+            className="flex items-center gap-2 px-4 py-2 text-sm text-white bg-green-500 rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Download className="w-4 h-4" />
+            <span>Export Excel</span>
+          </button>
+        </div>
 
-        {/* Date Filters */}
         {showFilters && (
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
+            <DateFilterInput
+              label="Filter Tanggal Masuk"
+              value={filterTanggalMasuk}
+              onChange={setFilterTanggalMasuk}
+            />
+            <DateFilterInput
+              label="Filter Tanggal Keluar (Penjualan)"
+              value={filterTanggalKeluar}
+              onChange={setFilterTanggalKeluar}
+            />
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Filter Tanggal Masuk
+                Filter Status
               </label>
-              <input
-                type="date"
-                value={filterTanggalMasuk}
-                onChange={(e) => setFilterTanggalMasuk(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black"
-              />
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black bg-white"
+              >
+                <option value="">Semua Status</option>
+                <option value="available">Tersedia</option>
+                <option value="sold">Terjual</option>
+              </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Filter Tanggal Keluar (Penjualan)
+                Filter Kadar
               </label>
-              <input
-                type="date"
-                value={filterTanggalKeluar}
-                onChange={(e) => setFilterTanggalKeluar(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black"
-              />
+              <select
+                value={filterKadar}
+                onChange={(e) => setFilterKadar(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black bg-white"
+              >
+                <option value="">Semua Kadar</option>
+                {kadarOptions.map(kadar => (
+                  <option key={kadar} value={kadar}>{kadar}</option>
+                ))}
+              </select>
             </div>
-            {(filterTanggalMasuk || filterTanggalKeluar) && (
-              <div className="md:col-span-2">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Filter Warna
+              </label>
+              <select
+                value={filterWarna}
+                onChange={(e) => setFilterWarna(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black bg-white"
+              >
+                <option value="">Semua Warna</option>
+                {WARNA_OPTIONS.map(warna => (
+                  <option key={warna.value} value={warna.value}>{warna.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Filter Perhiasan
+              </label>
+              <select
+                value={filterPerhiasan}
+                onChange={(e) => setFilterPerhiasan(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black bg-white"
+              >
+                <option value="">Semua Perhiasan</option>
+                {PERHIASAN_OPTIONS.map(perhiasan => (
+                  <option key={perhiasan} value={perhiasan}>{perhiasan}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Filter Kode Pabrik
+              </label>
+              <select
+                value={filterKodePabrik}
+                onChange={(e) => setFilterKodePabrik(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black bg-white"
+              >
+                <option value="">Semua Kode Pabrik</option>
+                {kodePabrikOptions.map(kode => (
+                  <option key={kode} value={kode}>{kode}</option>
+                ))}
+              </select>
+            </div>
+            {hasActiveFilters && (
+              <div className="md:col-span-2 lg:col-span-3">
                 <button
-                  onClick={() => {
-                    setFilterTanggalMasuk('')
-                    setFilterTanggalKeluar('')
-                  }}
+                  onClick={resetFilters}
                   className="text-sm text-red-600 hover:text-red-700 underline"
                 >
                   Reset Filter
