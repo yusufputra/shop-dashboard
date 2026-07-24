@@ -590,7 +590,7 @@ export default function InventoryPage() {
                         {can('inventory', 'delete') && (
                           <button
                             onClick={() => handleDelete(item.seri)}
-                            className="p-2 hover:bg-red-50 rounded-lg transition-colors"
+                            className="p-2 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                             title="Hapus"
                           >
                             <Trash2 className="w-4 h-4 text-red-600" />
