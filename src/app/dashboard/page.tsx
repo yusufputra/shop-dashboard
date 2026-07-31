@@ -10,6 +10,14 @@ import { formatCurrency } from '@/lib/utils'
 import { warnaLabel } from '@/lib/warna-options'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts'
 import * as XLSX from 'xlsx'
+import { TablePagination } from '@/components/table-pagination'
+import {
+  DEFAULT_PAGE_SIZE,
+  FETCH_PAGE_SIZE,
+  fetchAllPages,
+  sumNumericFields,
+  type PageSize,
+} from '@/lib/pagination'
 
 interface Stats {
   totalInventory: number
@@ -93,63 +101,97 @@ export default function DashboardPage() {
   const [selectedYear, setSelectedYear] = useState('')
   const [recapData, setRecapData] = useState<RecapData[]>([])
   const [exportRows, setExportRows] = useState<ExportRow[]>([])
+  const [recapPage, setRecapPage] = useState(0)
+  const [recapPageSize, setRecapPageSize] = useState<PageSize>(DEFAULT_PAGE_SIZE)
   const supabase = createClient()
+
+  const buildDateFilter = useCallback(() => {
+    if (filterType === 'date' && selectedDate) {
+      return { tanggal: selectedDate }
+    }
+    if (filterType === 'month' && selectedMonth) {
+      const [year, month] = selectedMonth.split('-')
+      const startDate = `${year}-${month}-01`
+      const endDate = `${year}-${month}-${new Date(parseInt(year), parseInt(month), 0).getDate()}`
+      return { tanggal: { gte: startDate, lte: endDate } }
+    }
+    if (filterType === 'year' && selectedYear) {
+      return {
+        tanggal: {
+          gte: `${selectedYear}-01-01`,
+          lte: `${selectedYear}-12-31`,
+        },
+      }
+    }
+    return {}
+  }, [filterType, selectedDate, selectedMonth, selectedYear])
 
   const loadMonthlyData = useCallback(async () => {
     try {
-      const [salesData, purchasesData, ordersData] = await Promise.all([
-        supabase.from('penjualan_perhiasan').select('tanggal, harga_jual'),
-        supabase.from('pembelian_perhiasan').select('tanggal, harga'),
-        supabase.from('pesanan_perhiasan').select('tanggal, harga')
+      const now = new Date()
+      const start = new Date(now.getFullYear(), now.getMonth() - 5, 1)
+      const startDate = start.toISOString().slice(0, 10)
+
+      const [salesRows, purchasesRows, ordersRows] = await Promise.all([
+        fetchAllPages<{ tanggal: string; harga_jual: number }>((from, to) =>
+          supabase
+            .from('penjualan_perhiasan')
+            .select('tanggal, harga_jual')
+            .gte('tanggal', startDate)
+            .range(from, to)
+        ),
+        fetchAllPages<{ tanggal: string; harga: number }>((from, to) =>
+          supabase
+            .from('pembelian_perhiasan')
+            .select('tanggal, harga')
+            .gte('tanggal', startDate)
+            .range(from, to)
+        ),
+        fetchAllPages<{ tanggal: string; harga: number }>((from, to) =>
+          supabase
+            .from('pesanan_perhiasan')
+            .select('tanggal, harga')
+            .gte('tanggal', startDate)
+            .range(from, to)
+        ),
       ])
 
-      // Process data by month
       const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
       const monthlyStats: Record<string, { penjualan: number; pembelian: number }> = {}
 
-      // Initialize last 6 months
-      const now = new Date()
       for (let i = 5; i >= 0; i--) {
         const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
-        const monthKey = `${monthNames[date.getMonth()]}`
-        monthlyStats[monthKey] = { penjualan: 0, pembelian: 0 }
+        monthlyStats[monthNames[date.getMonth()]] = { penjualan: 0, pembelian: 0 }
       }
 
-      // Aggregate sales from penjualan table
-      salesData.data?.forEach(sale => {
-        const date = new Date(sale.tanggal)
-        const monthKey = monthNames[date.getMonth()]
+      salesRows.forEach((sale) => {
+        const monthKey = monthNames[new Date(sale.tanggal).getMonth()]
         if (monthlyStats[monthKey]) {
           monthlyStats[monthKey].penjualan += Number(sale.harga_jual)
         }
       })
 
-      // Add custom orders to penjualan
-      ordersData.data?.forEach(order => {
-        const date = new Date(order.tanggal)
-        const monthKey = monthNames[date.getMonth()]
+      ordersRows.forEach((order) => {
+        const monthKey = monthNames[new Date(order.tanggal).getMonth()]
         if (monthlyStats[monthKey]) {
           monthlyStats[monthKey].penjualan += Number(order.harga)
         }
       })
 
-      // Aggregate purchases (pembelian - buying gold from customers)
-      purchasesData.data?.forEach(purchase => {
-        const date = new Date(purchase.tanggal)
-        const monthKey = monthNames[date.getMonth()]
+      purchasesRows.forEach((purchase) => {
+        const monthKey = monthNames[new Date(purchase.tanggal).getMonth()]
         if (monthlyStats[monthKey]) {
           monthlyStats[monthKey].pembelian += Number(purchase.harga)
         }
       })
 
-      // Convert to array
-      const chartData = Object.entries(monthlyStats).map(([name, data]) => ({
-        name,
-        penjualan: data.penjualan,
-        pembelian: data.pembelian
-      }))
-
-      setMonthlyData(chartData)
+      setMonthlyData(
+        Object.entries(monthlyStats).map(([name, data]) => ({
+          name,
+          penjualan: data.penjualan,
+          pembelian: data.pembelian,
+        }))
+      )
     } catch (error) {
       console.error('Error loading monthly data:', error)
     }
@@ -157,91 +199,104 @@ export default function DashboardPage() {
 
   const loadStatsAndData = useCallback(async () => {
     try {
-      // Build date filter
-      let dateFilter = {}
-      if (filterType === 'date' && selectedDate) {
-        dateFilter = { tanggal: selectedDate }
-      } else if (filterType === 'month' && selectedMonth) {
-        const [year, month] = selectedMonth.split('-')
-        const startDate = `${year}-${month}-01`
-        const endDate = `${year}-${month}-${new Date(parseInt(year), parseInt(month), 0).getDate()}`
-        dateFilter = { tanggal: { gte: startDate, lte: endDate } }
-      } else if (filterType === 'year' && selectedYear) {
-        const startDate = `${selectedYear}-01-01`
-        const endDate = `${selectedYear}-12-31`
-        dateFilter = { tanggal: { gte: startDate, lte: endDate } }
-      }
+      const dateFilter = buildDateFilter()
+      const hasDateFilter = Object.keys(dateFilter).length > 0
 
-      const [inventory, purchases, orders, sales] = await Promise.all([
-        supabase.from('stok_perhiasan').select('*', { count: 'exact' }),
-        supabase
-          .from('pembelian_perhiasan')
-          .select('*, customers ( public_id, nik, alamat, phone )')
-          .match(dateFilter),
-        supabase.from('pesanan_perhiasan').select('*').match(dateFilter),
-        supabase
-          .from('penjualan_perhiasan')
-          .select(`
-            *,
-            customers ( public_id, nik, alamat, phone ),
-            stok_perhiasan ( seri, perhiasan, jenis, model, kode_pabrik, warna, berat )
-          `)
-          .match(dateFilter)
-      ])
+      const applyDate = <T extends { match: (m: Record<string, unknown>) => T }>(query: T) =>
+        hasDateFilter ? query.match(dateFilter) : query
 
-      // Calculate total revenue from sales + custom orders
-      const salesRevenue = sales.data?.reduce((sum, sale) => sum + Number(sale.harga_jual), 0) || 0
-      const totalRevenue = salesRevenue
+      const [inventory, purchasesCount, ordersCount, salesSum, purchaseSum, purchases, orders, sales] =
+        await Promise.all([
+          supabase.from('stok_perhiasan').select('*', { count: 'exact', head: true }),
+          applyDate(
+            supabase.from('pembelian_perhiasan').select('*', { count: 'exact', head: true })
+          ),
+          applyDate(
+            supabase.from('pesanan_perhiasan').select('*', { count: 'exact', head: true })
+          ),
+          sumNumericFields(
+            (from, to) =>
+              applyDate(
+                supabase.from('penjualan_perhiasan').select('harga_jual')
+              ).range(from, to),
+            ['harga_jual']
+          ),
+          sumNumericFields(
+            (from, to) =>
+              applyDate(
+                supabase.from('pembelian_perhiasan').select('harga')
+              ).range(from, to),
+            ['harga']
+          ),
+          fetchAllPages((from, to) =>
+            applyDate(
+              supabase
+                .from('pembelian_perhiasan')
+                .select('*, customers ( public_id, nik, alamat, phone )')
+            ).range(from, to)
+          ),
+          fetchAllPages((from, to) =>
+            applyDate(
+              supabase.from('pesanan_perhiasan').select('*')
+            ).range(from, to)
+          ),
+          fetchAllPages((from, to) =>
+            applyDate(
+              supabase.from('penjualan_perhiasan').select(`
+                *,
+                customers ( public_id, nik, alamat, phone ),
+                stok_perhiasan ( seri, perhiasan, jenis, model, kode_pabrik, warna, berat )
+              `)
+            ).range(from, to)
+          ),
+        ])
 
-      // Calculate total purchase amount
-      const totalPurchaseAmount = purchases.data?.reduce((sum, purchase) => sum + Number(purchase.harga), 0) || 0
+      if (inventory.error) throw inventory.error
+      if (purchasesCount.error) throw purchasesCount.error
+      if (ordersCount.error) throw ordersCount.error
 
       setStats({
         totalInventory: inventory.count || 0,
-        totalPurchases: purchases.data?.length || 0,
-        totalOrders: orders.data?.length || 0,
-        totalRevenue,
-        totalPurchaseAmount
+        totalPurchases: purchasesCount.count || 0,
+        totalOrders: ordersCount.count || 0,
+        totalRevenue: salesSum.harga_jual,
+        totalPurchaseAmount: purchaseSum.harga,
       })
 
-      // Prepare recap data
       const recap: RecapData[] = []
-      
-      // Add sales
-      sales.data?.forEach(sale => {
+
+      for (const sale of sales) {
         recap.push({
-          tanggal: sale.tanggal,
+          tanggal: String(sale.tanggal),
           tipe: 'Penjualan',
           deskripsi: `${sale.nama_pembeli} - Seri: ${sale.stok_seri}`,
-          jumlah: Number(sale.harga_jual)
+          jumlah: Number(sale.harga_jual),
         })
-      })
+      }
 
-      // Add purchases
-      purchases.data?.forEach(purchase => {
+      for (const purchase of purchases) {
         recap.push({
-          tanggal: purchase.tanggal,
+          tanggal: String(purchase.tanggal),
           tipe: 'Pembelian',
           deskripsi: `${purchase.nama} - ${purchase.perhiasan}`,
-          jumlah: Number(purchase.harga)
+          jumlah: Number(purchase.harga),
         })
-      })
+      }
 
-      // Add orders
-      orders.data?.forEach(order => {
+      for (const order of orders) {
         recap.push({
-          tanggal: order.tanggal,
+          tanggal: String(order.tanggal),
           tipe: 'Pesanan',
           deskripsi: `${order.nama} - ${order.jenis_perhiasan}`,
-          jumlah: Number(order.harga)
+          jumlah: Number(order.harga),
         })
-      })
+      }
 
-      // Sort by date
       recap.sort((a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime())
       setRecapData(recap)
+      setRecapPage(0)
 
-      const purchaseSeris = purchases.data?.map(p => p.seri) ?? []
+      const purchaseSeris = purchases.map((p) => String(p.seri))
       const relatedStockByPurchase = new Map<string, {
         seri: string
         kode_pabrik: string | null
@@ -249,13 +304,23 @@ export default function DashboardPage() {
         jenis: string
       }>()
 
-      if (purchaseSeris.length > 0) {
-        const { data: relatedStock } = await supabase
-          .from('stok_perhiasan')
-          .select('seri, pembelian_seri, kode_pabrik, warna, jenis')
-          .in('pembelian_seri', purchaseSeris)
-
-        relatedStock?.forEach(item => {
+      for (let i = 0; i < purchaseSeris.length; i += FETCH_PAGE_SIZE) {
+        const chunk = purchaseSeris.slice(i, i + FETCH_PAGE_SIZE)
+        if (chunk.length === 0) continue
+        const relatedStock = await fetchAllPages<{
+          seri: string
+          pembelian_seri: string | null
+          kode_pabrik: string | null
+          warna: string | null
+          jenis: string
+        }>((from, to) =>
+          supabase
+            .from('stok_perhiasan')
+            .select('seri, pembelian_seri, kode_pabrik, warna, jenis')
+            .in('pembelian_seri', chunk)
+            .range(from, to)
+        )
+        relatedStock.forEach((item) => {
           if (item.pembelian_seri) {
             relatedStockByPurchase.set(item.pembelian_seri, item)
           }
@@ -264,7 +329,7 @@ export default function DashboardPage() {
 
       const rows: ExportRow[] = []
 
-      sales.data?.forEach(sale => {
+      for (const sale of sales) {
         const customer = (sale.customers as CustomerJoin) ?? null
         const stok = sale.stok_perhiasan as {
           seri: string
@@ -276,17 +341,17 @@ export default function DashboardPage() {
           berat: number
         } | null
         const customerInfo = customerExportFields(customer, {
-          alamat: sale.alamat,
-          phone: sale.no_telp,
+          alamat: String(sale.alamat ?? ''),
+          phone: (sale.no_telp as string | null) ?? null,
         })
 
         rows.push({
-          tanggal: sale.tanggal,
+          tanggal: String(sale.tanggal),
           tipe: 'Penjualan',
-          nomorTransaksi: sale.no,
+          nomorTransaksi: String(sale.no),
           ...customerInfo,
           perhiasan: stok?.perhiasan ?? '',
-          kodeBarang: stok?.seri ?? sale.stok_seri,
+          kodeBarang: stok?.seri ?? String(sale.stok_seri),
           model: stok?.model ?? '',
           kodePabrik: stok?.kode_pabrik?.trim() ?? '',
           warna: stok?.warna ? warnaLabel(stok.warna) : '',
@@ -295,43 +360,44 @@ export default function DashboardPage() {
           ongkos: sale.biaya != null ? Number(sale.biaya) : null,
           jumlahHarga: Number(sale.harga_jual),
         })
-      })
+      }
 
-      purchases.data?.forEach(purchase => {
+      for (const purchase of purchases) {
         const customer = (purchase.customers as CustomerJoin) ?? null
-        const relatedStock = relatedStockByPurchase.get(purchase.seri)
+        const relatedStock = relatedStockByPurchase.get(String(purchase.seri))
         const customerInfo = customerExportFields(customer, {
-          alamat: purchase.alamat,
+          alamat: String(purchase.alamat ?? ''),
         })
 
         rows.push({
-          tanggal: purchase.tanggal,
+          tanggal: String(purchase.tanggal),
           tipe: 'Pembelian',
-          nomorTransaksi: purchase.seri,
+          nomorTransaksi: String(purchase.seri),
           ...customerInfo,
-          perhiasan: purchase.perhiasan,
+          perhiasan: String(purchase.perhiasan),
           kodeBarang: relatedStock?.seri ?? '',
-          model: purchase.model,
+          model: String(purchase.model),
           kodePabrik: relatedStock?.kode_pabrik?.trim() ?? '',
           warna: relatedStock?.warna ? warnaLabel(relatedStock.warna) : '',
-          kadar: relatedStock?.jenis ?? formatKadarFromPurchase(purchase.kadar),
+          kadar: relatedStock?.jenis ?? formatKadarFromPurchase(
+            purchase.kadar == null ? null : Number(purchase.kadar)
+          ),
           berat: Number(purchase.berat),
           ongkos: null,
           jumlahHarga: Number(purchase.harga),
         })
-      })
+      }
 
       rows.sort((a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime())
       setExportRows(rows)
 
-      // Load monthly data
       await loadMonthlyData()
     } catch (error) {
       console.error('Error loading stats:', error)
     } finally {
       setLoading(false)
     }
-  }, [supabase, loadMonthlyData, filterType, selectedDate, selectedMonth, selectedYear])
+  }, [supabase, loadMonthlyData, buildDateFilter])
 
   useEffect(() => {
     loadStatsAndData()
@@ -678,9 +744,11 @@ export default function DashboardPage() {
 
       {/* Recap Table */}
       {recapData.length > 0 && (
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Rekap Transaksi</h3>
-          <div className="overflow-x-auto">
+        <div className="bg-white rounded-xl shadow-md overflow-hidden">
+          <div className="p-6 pb-0">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Rekap Transaksi</h3>
+          </div>
+          <div className="overflow-x-auto px-6">
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
@@ -691,8 +759,10 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {recapData.map((item, index) => (
-                  <tr key={index} className="hover:bg-gray-50">
+                {recapData
+                  .slice(recapPage * recapPageSize, (recapPage + 1) * recapPageSize)
+                  .map((item, index) => (
+                  <tr key={`${item.tipe}-${item.tanggal}-${index}`} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {new Date(item.tanggal).toLocaleDateString('id-ID')}
                     </td>
@@ -714,6 +784,13 @@ export default function DashboardPage() {
               </tbody>
             </table>
           </div>
+          <TablePagination
+            page={recapPage}
+            pageSize={recapPageSize}
+            totalCount={recapData.length}
+            onPageChange={setRecapPage}
+            onPageSizeChange={setRecapPageSize}
+          />
         </div>
       )}
     </div>

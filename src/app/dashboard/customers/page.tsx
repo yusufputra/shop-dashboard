@@ -9,84 +9,147 @@ import { customerPublicIdPath } from '@/lib/customers/public-id'
 import { computeAvailablePoints, displayPoints } from '@/lib/customers/points'
 import { useDashboardAuth, useRoutePermissionGuard } from '@/app/dashboard/dashboard-auth-context'
 import type { Customer, CustomerPointLedger, CustomerPointRedeem } from '@/types/database'
+import { TablePagination } from '@/components/table-pagination'
+import {
+  DEFAULT_PAGE_SIZE,
+  FETCH_PAGE_SIZE,
+  pageRange,
+  sanitizeSearchTerm,
+  searchOrExpression,
+  type PageSize,
+} from '@/lib/pagination'
+import type { DbProxyClient } from '@/lib/api/db-client'
+
+async function fetchRowsForCustomerIds(
+  supabase: DbProxyClient,
+  table: 'customer_point_ledger' | 'customer_point_redeem',
+  customerIds: string[],
+  options?: { expiresAfter?: string }
+) {
+  if (customerIds.length === 0) return [] as Record<string, unknown>[]
+
+  const rows: Record<string, unknown>[] = []
+  for (let i = 0; i < customerIds.length; i += FETCH_PAGE_SIZE) {
+    const idChunk = customerIds.slice(i, i + FETCH_PAGE_SIZE)
+    let from = 0
+    while (true) {
+      let query = supabase
+        .from(table)
+        .select('*')
+        .in('customer_id', idChunk)
+
+      if (options?.expiresAfter) {
+        query = query.gt('expires_at', options.expiresAfter)
+      }
+
+      const { data, error } = await query.range(from, from + FETCH_PAGE_SIZE - 1)
+      if (error) throw error
+      if (!data?.length) break
+      rows.push(...data)
+      if (data.length < FETCH_PAGE_SIZE) break
+      from += FETCH_PAGE_SIZE
+    }
+  }
+  return rows
+}
 
 export default function CustomersPage() {
   useRoutePermissionGuard('customers', 'read')
   const { can } = useDashboardAuth()
   const supabase = useMemo(() => createClient(), [])
   const [customers, setCustomers] = useState<Customer[]>([])
-  const [ledgerRows, setLedgerRows] = useState<CustomerPointLedger[]>([])
-  const [redeemRows, setRedeemRows] = useState<CustomerPointRedeem[]>([])
+  const [pointsByCustomer, setPointsByCustomer] = useState<Map<string, number>>(new Map())
+  const [totalCount, setTotalCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [page, setPage] = useState(0)
+  const [pageSize, setPageSize] = useState<PageSize>(DEFAULT_PAGE_SIZE)
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchTerm), 300)
+    return () => clearTimeout(timer)
+  }, [searchTerm])
+
+  useEffect(() => {
+    setPage(0)
+  }, [debouncedSearch])
+
+  const applySearch = useCallback(
+    <T extends { or: (expression: string) => T }>(query: T) => {
+      const term = sanitizeSearchTerm(debouncedSearch)
+      if (!term) return query
+      return query.or(
+        searchOrExpression(['nama', 'public_id', 'phone'], term)
+      )
+    },
+    [debouncedSearch]
+  )
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
+      const { from, to } = pageRange(page, pageSize)
+      const { data, error, count } = await applySearch(
+        supabase
+          .from('customers')
+          .select('*', { count: 'exact' })
+          .order('nama')
+      ).range(from, to)
+
+      if (error) throw error
+
+      const pageCustomers = (data as Customer[]) ?? []
+      setCustomers(pageCustomers)
+      setTotalCount(count ?? 0)
+
+      const customerIds = pageCustomers.map((c) => c.customer_id)
       const nowIso = new Date().toISOString()
-      const [cRes, lRes, rRes] = await Promise.all([
-        supabase.from('customers').select('*').order('nama'),
-        supabase.from('customer_point_ledger').select('*').gt('expires_at', nowIso),
-        supabase.from('customer_point_redeem').select('*'),
+      const [ledgerRows, redeemRows] = await Promise.all([
+        fetchRowsForCustomerIds(supabase, 'customer_point_ledger', customerIds, {
+          expiresAfter: nowIso,
+        }),
+        fetchRowsForCustomerIds(supabase, 'customer_point_redeem', customerIds),
       ])
-      if (cRes.error) throw cRes.error
-      if (lRes.error) throw lRes.error
-      if (rRes.error) throw rRes.error
-      setCustomers(cRes.data ?? [])
-      setLedgerRows(lRes.data ?? [])
-      setRedeemRows(rRes.data ?? [])
+
+      const ledgerByCustomer = new Map<string, CustomerPointLedger[]>()
+      const redeemByCustomer = new Map<string, CustomerPointRedeem[]>()
+
+      for (const row of ledgerRows as unknown as CustomerPointLedger[]) {
+        const list = ledgerByCustomer.get(row.customer_id) ?? []
+        list.push(row)
+        ledgerByCustomer.set(row.customer_id, list)
+      }
+      for (const row of redeemRows as unknown as CustomerPointRedeem[]) {
+        const list = redeemByCustomer.get(row.customer_id) ?? []
+        list.push(row)
+        redeemByCustomer.set(row.customer_id, list)
+      }
+
+      const points = new Map<string, number>()
+      for (const c of pageCustomers) {
+        points.set(
+          c.customer_id,
+          computeAvailablePoints(
+            ledgerByCustomer.get(c.customer_id) ?? [],
+            redeemByCustomer.get(c.customer_id) ?? []
+          )
+        )
+      }
+      setPointsByCustomer(points)
     } catch (e) {
       console.error(e)
       await alertDialog('Gagal memuat data pelanggan')
     } finally {
       setLoading(false)
     }
-  }, [supabase])
+  }, [supabase, applySearch, page, pageSize])
 
   useEffect(() => {
     void load()
   }, [load])
 
-  const activePointsByCustomer = useMemo(() => {
-    const ledgerByCustomer = new Map<string, CustomerPointLedger[]>()
-    const redeemByCustomer = new Map<string, CustomerPointRedeem[]>()
-
-    for (const row of ledgerRows) {
-      const list = ledgerByCustomer.get(row.customer_id) ?? []
-      list.push(row)
-      ledgerByCustomer.set(row.customer_id, list)
-    }
-    for (const row of redeemRows) {
-      const list = redeemByCustomer.get(row.customer_id) ?? []
-      list.push(row)
-      redeemByCustomer.set(row.customer_id, list)
-    }
-
-    const m = new Map<string, number>()
-    for (const c of customers) {
-      m.set(
-        c.customer_id,
-        computeAvailablePoints(
-          ledgerByCustomer.get(c.customer_id) ?? [],
-          redeemByCustomer.get(c.customer_id) ?? []
-        )
-      )
-    }
-    return m
-  }, [customers, ledgerRows, redeemRows])
-
-  const filteredCustomers = useMemo(() => {
-    const q = searchTerm.trim().toLowerCase()
-    if (!q) return customers
-    return customers.filter(
-      (c) =>
-        c.nama.toLowerCase().includes(q) ||
-        String(c.public_id).toLowerCase().includes(q) ||
-        (c.phone ?? '').toLowerCase().includes(q)
-    )
-  }, [customers, searchTerm])
-
-  if (loading) {
+  if (loading && customers.length === 0) {
     return (
       <div className="flex h-64 items-center justify-center">
         <div className="h-12 w-12 animate-spin rounded-full border-4 border-amber-500 border-t-transparent" />
@@ -157,22 +220,22 @@ export default function CustomersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {customers.length === 0 ? (
+              {totalCount === 0 && !sanitizeSearchTerm(debouncedSearch) ? (
                 <tr>
                   <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
                     Belum ada pelanggan. {can('customers', 'create') ? 'Klik Tambah pelanggan.' : ''}
                   </td>
                 </tr>
-              ) : filteredCustomers.length === 0 ? (
+              ) : customers.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
                     Tidak ada pelanggan yang cocok dengan pencarian.
                   </td>
                 </tr>
               ) : (
-                filteredCustomers.map((c) => {
+                customers.map((c) => {
                   const pid = String(c.public_id)
-                  const pts = activePointsByCustomer.get(c.customer_id) ?? 0
+                  const pts = pointsByCustomer.get(c.customer_id) ?? 0
                   return (
                     <tr key={c.customer_id} className="hover:bg-gray-50/80">
                       <td className="px-4 py-3 text-sm font-medium text-gray-900">
@@ -197,6 +260,14 @@ export default function CustomersPage() {
             </tbody>
           </table>
         </div>
+        <TablePagination
+          page={page}
+          pageSize={pageSize}
+          totalCount={totalCount}
+          loading={loading}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
       </div>
     </div>
   )

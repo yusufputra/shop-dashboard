@@ -8,44 +8,100 @@ import { formatCurrency, formatWeight } from '@/lib/utils'
 import { PesananPerhiasan } from '@/types/database'
 import Link from 'next/link'
 import { useDashboardAuth } from '@/app/dashboard/dashboard-auth-context'
+import { TablePagination } from '@/components/table-pagination'
+import {
+  DEFAULT_PAGE_SIZE,
+  pageRange,
+  sanitizeSearchTerm,
+  searchOrExpression,
+  sumNumericFields,
+  type PageSize,
+} from '@/lib/pagination'
 
 export default function OrdersPage() {
   const { can } = useDashboardAuth()
   const [orders, setOrders] = useState<PesananPerhiasan[]>([])
-  const [filteredOrders, setFilteredOrders] = useState<PesananPerhiasan[]>([])
+  const [totalCount, setTotalCount] = useState(0)
+  const [totalDp, setTotalDp] = useState(0)
+  const [totalNilai, setTotalNilai] = useState(0)
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [page, setPage] = useState(0)
+  const [pageSize, setPageSize] = useState<PageSize>(DEFAULT_PAGE_SIZE)
   const supabase = createClient()
 
-  const loadOrders = useCallback(async () => {
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchTerm), 300)
+    return () => clearTimeout(timer)
+  }, [searchTerm])
+
+  useEffect(() => {
+    setPage(0)
+  }, [debouncedSearch])
+
+  const applySearch = useCallback(
+    <T extends { or: (expression: string) => T }>(query: T) => {
+      const term = sanitizeSearchTerm(debouncedSearch)
+      if (!term) return query
+      return query.or(
+        searchOrExpression(['nama', 'jenis_perhiasan', 'no'], term)
+      )
+    },
+    [debouncedSearch]
+  )
+
+  const loadStats = useCallback(async () => {
     try {
-      const { data, error } = await supabase
-        .from('pesanan_perhiasan')
-        .select('*')
-        .order('created_at', { ascending: false })
+      const countResult = await applySearch(
+        supabase.from('pesanan_perhiasan').select('*', { count: 'exact', head: true })
+      )
+      if (countResult.error) throw countResult.error
+
+      const sums = await sumNumericFields(
+        (from, to) =>
+          applySearch(
+            supabase.from('pesanan_perhiasan').select('dp_pembayaran, harga')
+          ).range(from, to),
+        ['dp_pembayaran', 'harga']
+      )
+
+      setTotalCount(countResult.count ?? 0)
+      setTotalDp(sums.dp_pembayaran)
+      setTotalNilai(sums.harga)
+    } catch (error) {
+      console.error('Error loading order stats:', error)
+    }
+  }, [supabase, applySearch])
+
+  const loadOrders = useCallback(async () => {
+    setLoading(true)
+    try {
+      const { from, to } = pageRange(page, pageSize)
+      const { data, error, count } = await applySearch(
+        supabase
+          .from('pesanan_perhiasan')
+          .select('*', { count: 'exact' })
+          .order('created_at', { ascending: false })
+      ).range(from, to)
 
       if (error) throw error
-      setOrders(data || [])
-      setFilteredOrders(data || [])
+      setOrders((data as PesananPerhiasan[]) || [])
+      if (count != null) setTotalCount(count)
     } catch (error) {
       console.error('Error loading orders:', error)
     } finally {
       setLoading(false)
     }
-  }, [supabase])
+  }, [supabase, applySearch, page, pageSize])
+
+  useEffect(() => {
+    loadStats()
+  }, [loadStats])
 
   useEffect(() => {
     loadOrders()
   }, [loadOrders])
-
-  useEffect(() => {
-    const filtered = orders.filter(item =>
-      item.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.jenis_perhiasan.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.no.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-    setFilteredOrders(filtered)
-  }, [searchTerm, orders])
 
   async function handleDelete(no: string) {
     if (!await confirmDialog('Apakah Anda yakin ingin menghapus pesanan ini?')) return
@@ -57,14 +113,14 @@ export default function OrdersPage() {
         .eq('no', no)
 
       if (error) throw error
-      loadOrders()
+      await Promise.all([loadOrders(), loadStats()])
     } catch (error) {
       console.error('Error deleting order:', error)
       await alertDialog('Gagal menghapus pesanan')
     }
   }
 
-  if (loading) {
+  if (loading && orders.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="w-12 h-12 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
@@ -106,18 +162,18 @@ export default function OrdersPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white rounded-xl shadow-md p-6">
           <p className="text-gray-600 text-sm mb-1">Total Pesanan</p>
-          <p className="text-3xl font-bold text-gray-900">{filteredOrders.length}</p>
+          <p className="text-3xl font-bold text-gray-900">{totalCount}</p>
         </div>
         <div className="bg-white rounded-xl shadow-md p-6">
           <p className="text-gray-600 text-sm mb-1">Total DP</p>
           <p className="text-2xl font-bold text-gray-900">
-            {formatCurrency(filteredOrders.reduce((sum, item) => sum + Number(item.dp_pembayaran), 0))}
+            {formatCurrency(totalDp)}
           </p>
         </div>
         <div className="bg-white rounded-xl shadow-md p-6">
           <p className="text-gray-600 text-sm mb-1">Total Nilai</p>
           <p className="text-2xl font-bold text-gray-900">
-            {formatCurrency(filteredOrders.reduce((sum, item) => sum + Number(item.harga), 0))}
+            {formatCurrency(totalNilai)}
           </p>
         </div>
       </div>
@@ -139,14 +195,14 @@ export default function OrdersPage() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredOrders.length === 0 ? (
+              {orders.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="px-6 py-12 text-center text-gray-500">
                     Tidak ada data pesanan
                   </td>
                 </tr>
               ) : (
-                filteredOrders.map((item) => (
+                orders.map((item) => (
                   <tr key={item.no} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {item.no}
@@ -205,6 +261,14 @@ export default function OrdersPage() {
             </tbody>
           </table>
         </div>
+        <TablePagination
+          page={page}
+          pageSize={pageSize}
+          totalCount={totalCount}
+          loading={loading}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
       </div>
     </div>
   )

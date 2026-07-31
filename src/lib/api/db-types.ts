@@ -4,6 +4,9 @@ export type DbFilter =
   | { op: 'gte'; column: string; value: unknown }
   | { op: 'lte'; column: string; value: unknown }
   | { op: 'in'; column: string; value: unknown[] }
+  | { op: 'ilike'; column: string; value: string }
+  | { op: 'is'; column: string; value: null }
+  | { op: 'or'; expression: string }
   | { op: 'match'; match: Record<string, unknown> }
 
 export type DbOrder = {
@@ -19,7 +22,11 @@ export type DbSelectRequest = {
   filters?: DbFilter[]
   order?: DbOrder
   limit?: number
+  /** Inclusive range, PostgREST-style (from/to). */
+  range?: { from: number; to: number }
   count?: 'exact'
+  /** When true with count, return only the count (no rows). */
+  head?: boolean
   mode?: DbSelectMode
 }
 

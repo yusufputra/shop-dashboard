@@ -10,49 +10,112 @@ import { GadaiPerhiasan } from '@/types/database'
 import Link from 'next/link'
 import { useDashboardAuth } from '@/app/dashboard/dashboard-auth-context'
 import { gadaiInvoicePath } from '@/lib/gadai/invoice-path'
+import { TablePagination } from '@/components/table-pagination'
+import {
+  DEFAULT_PAGE_SIZE,
+  pageRange,
+  sanitizeSearchTerm,
+  searchOrExpression,
+  sumNumericFields,
+  type PageSize,
+} from '@/lib/pagination'
 
 export default function GadaiPage() {
   const { can } = useDashboardAuth()
   const [items, setItems] = useState<GadaiPerhiasan[]>([])
-  const [filteredItems, setFilteredItems] = useState<GadaiPerhiasan[]>([])
+  const [totalCount, setTotalCount] = useState(0)
+  const [activeCount, setActiveCount] = useState(0)
+  const [totalPinjaman, setTotalPinjaman] = useState(0)
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [page, setPage] = useState(0)
+  const [pageSize, setPageSize] = useState<PageSize>(DEFAULT_PAGE_SIZE)
   const supabase = createClient()
 
-  const loadItems = useCallback(async () => {
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchTerm), 300)
+    return () => clearTimeout(timer)
+  }, [searchTerm])
+
+  useEffect(() => {
+    setPage(0)
+  }, [debouncedSearch])
+
+  const applySearch = useCallback(
+    <T extends { or: (expression: string) => T }>(query: T) => {
+      const term = sanitizeSearchTerm(debouncedSearch)
+      if (!term) return query
+      return query.or(
+        searchOrExpression(
+          ['nama', 'no_invoice', 'perhiasan', 'model', 'nik'],
+          term
+        )
+      )
+    },
+    [debouncedSearch]
+  )
+
+  const loadStats = useCallback(async () => {
     try {
-      const { data, error } = await supabase
-        .from('gadai_perhiasan')
-        .select('*')
-        .order('tgl_peminjaman', { ascending: false })
+      const [totalResult, activeResult] = await Promise.all([
+        applySearch(
+          supabase.from('gadai_perhiasan').select('*', { count: 'exact', head: true })
+        ),
+        applySearch(
+          supabase
+            .from('gadai_perhiasan')
+            .select('*', { count: 'exact', head: true })
+            .is('tgl_pelunasan', null)
+        ),
+      ])
+      if (totalResult.error) throw totalResult.error
+      if (activeResult.error) throw activeResult.error
+
+      const sums = await sumNumericFields(
+        (from, to) =>
+          applySearch(
+            supabase.from('gadai_perhiasan').select('uang_dipinjam')
+          ).range(from, to),
+        ['uang_dipinjam']
+      )
+
+      setTotalCount(totalResult.count ?? 0)
+      setActiveCount(activeResult.count ?? 0)
+      setTotalPinjaman(sums.uang_dipinjam)
+    } catch (error) {
+      console.error('Error loading gadai stats:', error)
+    }
+  }, [supabase, applySearch])
+
+  const loadItems = useCallback(async () => {
+    setLoading(true)
+    try {
+      const { from, to } = pageRange(page, pageSize)
+      const { data, error, count } = await applySearch(
+        supabase
+          .from('gadai_perhiasan')
+          .select('*', { count: 'exact' })
+          .order('tgl_peminjaman', { ascending: false })
+      ).range(from, to)
 
       if (error) throw error
-      setItems(data || [])
-      setFilteredItems(data || [])
+      setItems((data as GadaiPerhiasan[]) || [])
+      if (count != null) setTotalCount(count)
     } catch (error) {
       console.error('Error loading gadai:', error)
     } finally {
       setLoading(false)
     }
-  }, [supabase])
+  }, [supabase, applySearch, page, pageSize])
+
+  useEffect(() => {
+    loadStats()
+  }, [loadStats])
 
   useEffect(() => {
     loadItems()
   }, [loadItems])
-
-  useEffect(() => {
-    const q = searchTerm.toLowerCase()
-    const filtered = items.filter(
-      (item) =>
-        item.nama.toLowerCase().includes(q) ||
-        item.no_invoice.toLowerCase().includes(q) ||
-        item.perhiasan.toLowerCase().includes(q) ||
-        item.model.toLowerCase().includes(q) ||
-        (item.nik && item.nik.includes(searchTerm)) ||
-        (item.kadar != null && String(item.kadar).includes(searchTerm))
-    )
-    setFilteredItems(filtered)
-  }, [searchTerm, items])
 
   async function handleDelete(noInvoice: string) {
     if (!await confirmDialog('Apakah Anda yakin ingin menghapus data gadai ini?')) return
@@ -76,20 +139,14 @@ export default function GadaiPage() {
         await supabase.storage.from('jewelry-images').remove([path])
       }
 
-      loadItems()
+      await Promise.all([loadItems(), loadStats()])
     } catch (error) {
       console.error('Error deleting gadai:', error)
       await alertDialog('Gagal menghapus data')
     }
   }
 
-  const activeCount = filteredItems.filter((i) => !i.tgl_pelunasan).length
-  const totalPinjaman = filteredItems.reduce(
-    (sum, item) => sum + Number(item.uang_dipinjam),
-    0
-  )
-
-  if (loading) {
+  if (loading && items.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="w-12 h-12 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
@@ -131,7 +188,7 @@ export default function GadaiPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white rounded-xl shadow-md p-6">
           <p className="text-gray-600 text-sm mb-1">Total Transaksi</p>
-          <p className="text-3xl font-bold text-gray-900">{filteredItems.length}</p>
+          <p className="text-3xl font-bold text-gray-900">{totalCount}</p>
         </div>
         <div className="bg-white rounded-xl shadow-md p-6">
           <p className="text-gray-600 text-sm mb-1">Masih Aktif</p>
@@ -184,14 +241,14 @@ export default function GadaiPage() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredItems.length === 0 ? (
+              {items.length === 0 ? (
                 <tr>
                   <td colSpan={11} className="px-6 py-12 text-center text-gray-500">
                     Tidak ada data gadai
                   </td>
                 </tr>
               ) : (
-                filteredItems.map((item) => {
+                items.map((item) => {
                   const path = gadaiInvoicePath(item.no_invoice)
                   const lunas = Boolean(item.tgl_pelunasan)
                   return (
@@ -272,6 +329,14 @@ export default function GadaiPage() {
             </tbody>
           </table>
         </div>
+        <TablePagination
+          page={page}
+          pageSize={pageSize}
+          totalCount={totalCount}
+          loading={loading}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
       </div>
     </div>
   )

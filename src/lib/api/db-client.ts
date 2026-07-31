@@ -83,7 +83,9 @@ class SelectQuery<TData = QueryManyResult> implements PromiseLike<SelectResult<T
   private filters: DbFilter[] = []
   private orderBy?: { column: string; ascending: boolean }
   private limitCount?: number
+  private rangeBounds?: { from: number; to: number }
   private count?: 'exact'
+  private headOnly = false
   private mode: 'many' | 'single' | 'maybeSingle' = 'many'
 
   constructor(
@@ -101,8 +103,33 @@ class SelectQuery<TData = QueryManyResult> implements PromiseLike<SelectResult<T
     return this
   }
 
+  gte(column: string, value: unknown): SelectQuery<TData> {
+    this.filters.push({ op: 'gte', column, value })
+    return this
+  }
+
+  lte(column: string, value: unknown): SelectQuery<TData> {
+    this.filters.push({ op: 'lte', column, value })
+    return this
+  }
+
   in(column: string, value: unknown[]): SelectQuery<TData> {
     this.filters.push({ op: 'in', column, value })
+    return this
+  }
+
+  ilike(column: string, value: string): SelectQuery<TData> {
+    this.filters.push({ op: 'ilike', column, value })
+    return this
+  }
+
+  or(expression: string): SelectQuery<TData> {
+    this.filters.push({ op: 'or', expression })
+    return this
+  }
+
+  is(column: string, value: null): SelectQuery<TData> {
+    this.filters.push({ op: 'is', column, value })
     return this
   }
 
@@ -121,6 +148,11 @@ class SelectQuery<TData = QueryManyResult> implements PromiseLike<SelectResult<T
     return this
   }
 
+  range(from: number, to: number): SelectQuery<TData> {
+    this.rangeBounds = { from, to }
+    return this
+  }
+
   single(): SelectQuery<QueryOneResult> {
     this.mode = 'single'
     return this as unknown as SelectQuery<QueryOneResult>
@@ -133,6 +165,11 @@ class SelectQuery<TData = QueryManyResult> implements PromiseLike<SelectResult<T
 
   withCount(count: 'exact'): SelectQuery<TData> {
     this.count = count
+    return this
+  }
+
+  withHead(head = true): SelectQuery<TData> {
+    this.headOnly = head
     return this
   }
 
@@ -150,7 +187,9 @@ class SelectQuery<TData = QueryManyResult> implements PromiseLike<SelectResult<T
       filters: this.filters,
       order: this.orderBy,
       limit: this.limitCount,
+      range: this.rangeBounds,
       count: this.count,
+      head: this.headOnly || undefined,
       mode: this.mode,
     }
     const raw = await postJson('/api/db/query', body)
@@ -243,10 +282,13 @@ class DeleteQuery implements PromiseLike<MutationResult> {
 class TableClient {
   constructor(private table: string) {}
 
-  select(columns: string, opts?: { count?: 'exact' }): SelectQuery {
+  select(columns: string, opts?: { count?: 'exact'; head?: boolean }): SelectQuery {
     const q = new SelectQuery(this.table, columns)
     if (opts?.count === 'exact') {
       q.withCount('exact')
+    }
+    if (opts?.head) {
+      q.withHead(true)
     }
     return q
   }

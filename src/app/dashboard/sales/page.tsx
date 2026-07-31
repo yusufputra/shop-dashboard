@@ -8,6 +8,15 @@ import { formatCreatedByLabel } from '@/lib/audit/created-by'
 import { formatCurrency, formatWeight } from '@/lib/utils'
 import Link from 'next/link'
 import { useDashboardAuth } from '@/app/dashboard/dashboard-auth-context'
+import { TablePagination } from '@/components/table-pagination'
+import {
+  DEFAULT_PAGE_SIZE,
+  pageRange,
+  sanitizeSearchTerm,
+  searchOrExpression,
+  sumNumericFields,
+  type PageSize,
+} from '@/lib/pagination'
 
 interface SaleWithStock {
   no: string
@@ -28,91 +37,130 @@ export default function SalesPage() {
   const { can } = useDashboardAuth()
   const supabase = createClient()
   const [sales, setSales] = useState<SaleWithStock[]>([])
-  const [filteredSales, setFilteredSales] = useState<SaleWithStock[]>([])
+  const [totalCount, setTotalCount] = useState(0)
+  const [totalRevenue, setTotalRevenue] = useState(0)
   const [searchTerm, setSearchTerm] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [page, setPage] = useState(0)
+  const [pageSize, setPageSize] = useState<PageSize>(DEFAULT_PAGE_SIZE)
   const [loading, setLoading] = useState(true)
 
-  const loadSales = useCallback(async () => {
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchTerm), 300)
+    return () => clearTimeout(timer)
+  }, [searchTerm])
+
+  useEffect(() => {
+    setPage(0)
+  }, [debouncedSearch])
+
+  const applySearch = useCallback(
+    <T extends { or: (expression: string) => T }>(query: T) => {
+      const term = sanitizeSearchTerm(debouncedSearch)
+      if (!term) return query
+      return query.or(
+        searchOrExpression(['nama_pembeli', 'no', 'stok_seri'], term)
+      )
+    },
+    [debouncedSearch]
+  )
+
+  const loadStats = useCallback(async () => {
     try {
-      const { data, error } = await supabase
-        .from('penjualan_perhiasan')
-        .select(`
-          *,
-          stok_perhiasan!inner(perhiasan, jenis, berat)
-        `)
-        .order('created_at', { ascending: false })
+      const countResult = await applySearch(
+        supabase.from('penjualan_perhiasan').select('*', { count: 'exact', head: true })
+      )
+      if (countResult.error) throw countResult.error
+
+      const sums = await sumNumericFields(
+        (from, to) =>
+          applySearch(
+            supabase.from('penjualan_perhiasan').select('harga_jual')
+          ).range(from, to),
+        ['harga_jual']
+      )
+
+      setTotalCount(countResult.count ?? 0)
+      setTotalRevenue(sums.harga_jual)
+    } catch (error) {
+      console.error('Error loading sales stats:', error)
+    }
+  }, [supabase, applySearch])
+
+  const loadSales = useCallback(async () => {
+    setLoading(true)
+    try {
+      const { from, to } = pageRange(page, pageSize)
+      const { data, error, count } = await applySearch(
+        supabase
+          .from('penjualan_perhiasan')
+          .select(`
+            *,
+            stok_perhiasan!inner(perhiasan, jenis, berat)
+          `, { count: 'exact' })
+          .order('created_at', { ascending: false })
+      ).range(from, to)
 
       if (error) throw error
 
-      const formattedData = data?.map((item) => ({
-        ...item,
-        perhiasan: item.stok_perhiasan.perhiasan,
-        jenis: item.stok_perhiasan.jenis,
-        berat: item.stok_perhiasan.berat
-      })) || []
+      const formattedData =
+        data?.map((item) => ({
+          ...item,
+          perhiasan: item.stok_perhiasan.perhiasan,
+          jenis: item.stok_perhiasan.jenis,
+          berat: item.stok_perhiasan.berat,
+        })) || []
 
       setSales(formattedData)
-      setFilteredSales(formattedData)
+      if (count != null) setTotalCount(count)
     } catch (error) {
       console.error('Error loading sales:', error)
     } finally {
       setLoading(false)
     }
-  }, [supabase])
+  }, [supabase, applySearch, page, pageSize])
+
+  useEffect(() => {
+    loadStats()
+  }, [loadStats])
 
   useEffect(() => {
     loadSales()
   }, [loadSales])
 
-  useEffect(() => {
-    const filtered = sales.filter(item =>
-      item.nama_pembeli.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.no.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.stok_seri.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-    setFilteredSales(filtered)
-  }, [searchTerm, sales])
-
-  const handleDelete = async (no: string) => {
+  const handleDelete = async (no: string, stokSeri: string) => {
     if (!await confirmDialog('Apakah Anda yakin ingin menghapus data penjualan ini?')) return
 
     try {
-      // Find the sale to get stok_seri
-      const sale = sales.find(s => s.no === no)
-
-      // Update stock status back to available
-      if (sale?.stok_seri) {
+      if (stokSeri) {
         const { error: stockError } = await supabase
           .from('stok_perhiasan')
           .update({ status: 'available' })
-          .eq('seri', sale.stok_seri)
+          .eq('seri', stokSeri)
 
         if (stockError) throw stockError
       }
 
-      // Delete sale
       const { error } = await supabase
         .from('penjualan_perhiasan')
         .delete()
         .eq('no', no)
 
       if (error) throw error
-      loadSales()
+      await Promise.all([loadSales(), loadStats()])
     } catch (error) {
       console.error('Error deleting sale:', error)
       await alertDialog('Gagal menghapus data penjualan')
     }
   }
 
-  if (loading) {
+  if (loading && sales.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="w-12 h-12 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
     )
   }
-
-  const totalRevenue = filteredSales.reduce((sum: number, item: SaleWithStock) => sum + Number(item.harga_jual), 0)
 
   return (
     <div className="space-y-6">
@@ -148,7 +196,7 @@ export default function SalesPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-white rounded-xl shadow-md p-6">
           <p className="text-gray-600 text-sm mb-1">Total Penjualan</p>
-          <p className="text-3xl font-bold text-gray-900">{filteredSales.length}</p>
+          <p className="text-3xl font-bold text-gray-900">{totalCount}</p>
         </div>
         <div className="bg-white rounded-xl shadow-md p-6">
           <p className="text-gray-600 text-sm mb-1">Total Pendapatan</p>
@@ -173,14 +221,14 @@ export default function SalesPage() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredSales.length === 0 ? (
+              {sales.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={9} className="px-6 py-12 text-center text-gray-500">
                     Tidak ada data penjualan
                   </td>
                 </tr>
               ) : (
-                filteredSales.map((item) => (
+                sales.map((item) => (
                   <tr key={item.no} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {item.no}
@@ -214,7 +262,7 @@ export default function SalesPage() {
                         </Link>
                         {can('sales', 'delete') && (
                           <button
-                            onClick={() => handleDelete(item.no)}
+                            onClick={() => handleDelete(item.no, item.stok_seri)}
                             className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
                             title="Hapus"
                           >
@@ -229,6 +277,14 @@ export default function SalesPage() {
             </tbody>
           </table>
         </div>
+        <TablePagination
+          page={page}
+          pageSize={pageSize}
+          totalCount={totalCount}
+          loading={loading}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
       </div>
     </div>
   )
