@@ -114,6 +114,7 @@ CREATE TABLE IF NOT EXISTS stok_perhiasan (
   model VARCHAR(100) NOT NULL,
   fyen VARCHAR(255),
   kode_pabrik VARCHAR(100),
+  kode_produksi VARCHAR(100),
   ring_cm DECIMAL(10, 2),
   panjang_cm DECIMAL(10, 2),
   tipe_gelang VARCHAR(20),
@@ -132,6 +133,7 @@ CREATE TABLE IF NOT EXISTS stok_perhiasan (
 
 COMMENT ON COLUMN stok_perhiasan.fyen IS 'Field fyen (string, opsional)';
 COMMENT ON COLUMN stok_perhiasan.kode_pabrik IS 'Kode dari pabrik/pemasok';
+COMMENT ON COLUMN stok_perhiasan.kode_produksi IS 'Kode produksi, untuk logam mulia (LM)';
 COMMENT ON COLUMN stok_perhiasan.ring_cm IS 'Ukuran ring (cm), untuk cincin';
 COMMENT ON COLUMN stok_perhiasan.panjang_cm IS 'Panjang (cm), untuk kalung atau gelang rantai';
 COMMENT ON COLUMN stok_perhiasan.tipe_gelang IS 'Tipe gelang: rantai atau beagle';

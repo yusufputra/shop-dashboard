@@ -361,6 +361,7 @@ function NewInventoryForm() {
 
           <InventoryExtraFields
             kode_pabrik={formData.kode_pabrik}
+            kode_produksi={formData.kode_produksi}
             perhiasan={formData.perhiasan}
             ring_cm={formData.ring_cm}
             panjang_cm={formData.panjang_cm}

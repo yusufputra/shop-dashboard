@@ -1,12 +1,13 @@
 'use client'
 
-import { TIPE_GELANG_OPTIONS } from '@/lib/inventory-extra-fields'
+import { LOGAM_MULIA, TIPE_GELANG_OPTIONS } from '@/lib/inventory-extra-fields'
 
 const inputClass =
   'w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black'
 
 type Props = {
   kode_pabrik: string
+  kode_produksi: string
   perhiasan: string
   ring_cm: string
   panjang_cm: string
@@ -17,6 +18,7 @@ type Props = {
 
 export function InventoryExtraFields({
   kode_pabrik,
+  kode_produksi,
   perhiasan,
   ring_cm,
   panjang_cm,
@@ -36,6 +38,20 @@ export function InventoryExtraFields({
           className={inputClass}
         />
       </div>
+
+      {perhiasan === LOGAM_MULIA && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Kode produksi</label>
+          <input
+            type="text"
+            name="kode_produksi"
+            value={kode_produksi}
+            onChange={onChange}
+            placeholder="Contoh: kode produksi LM"
+            className={inputClass}
+          />
+        </div>
+      )}
 
       {perhiasan === 'Cincin' && (
         <div>

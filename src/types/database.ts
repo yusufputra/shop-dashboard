@@ -195,6 +195,7 @@ export interface Database {
           model: string
           fyen: string | null
           kode_pabrik: string | null
+          kode_produksi: string | null
           ring_cm: number | null
           panjang_cm: number | null
           tipe_gelang: string | null
@@ -218,6 +219,7 @@ export interface Database {
           model: string
           fyen?: string | null
           kode_pabrik?: string | null
+          kode_produksi?: string | null
           ring_cm?: number | null
           panjang_cm?: number | null
           tipe_gelang?: string | null
@@ -241,6 +243,7 @@ export interface Database {
           model?: string
           fyen?: string | null
           kode_pabrik?: string | null
+          kode_produksi?: string | null
           ring_cm?: number | null
           panjang_cm?: number | null
           tipe_gelang?: string | null
