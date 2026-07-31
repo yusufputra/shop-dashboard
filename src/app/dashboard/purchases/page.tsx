@@ -9,46 +9,98 @@ import { formatCurrency, formatWeight } from '@/lib/utils'
 import { PembelianPerhiasan } from '@/types/database'
 import Link from 'next/link'
 import { useDashboardAuth } from '@/app/dashboard/dashboard-auth-context'
+import { TablePagination } from '@/components/table-pagination'
+import {
+  DEFAULT_PAGE_SIZE,
+  pageRange,
+  sanitizeSearchTerm,
+  searchOrExpression,
+  sumNumericFields,
+  type PageSize,
+} from '@/lib/pagination'
 
 export default function PurchasesPage() {
   const { can } = useDashboardAuth()
   const [purchases, setPurchases] = useState<PembelianPerhiasan[]>([])
-  const [filteredPurchases, setFilteredPurchases] = useState<PembelianPerhiasan[]>([])
+  const [totalCount, setTotalCount] = useState(0)
+  const [totalNilai, setTotalNilai] = useState(0)
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [page, setPage] = useState(0)
+  const [pageSize, setPageSize] = useState<PageSize>(DEFAULT_PAGE_SIZE)
   const supabase = createClient()
 
-  const loadPurchases = useCallback(async () => {
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchTerm), 300)
+    return () => clearTimeout(timer)
+  }, [searchTerm])
+
+  useEffect(() => {
+    setPage(0)
+  }, [debouncedSearch])
+
+  const applySearch = useCallback(
+    <T extends { or: (expression: string) => T }>(query: T) => {
+      const term = sanitizeSearchTerm(debouncedSearch)
+      if (!term) return query
+      return query.or(
+        searchOrExpression(['nama', 'perhiasan', 'seri'], term)
+      )
+    },
+    [debouncedSearch]
+  )
+
+  const loadStats = useCallback(async () => {
     try {
-      const { data, error } = await supabase
-        .from('pembelian_perhiasan')
-        .select('*')
-        .order('created_at', { ascending: false })
+      const countResult = await applySearch(
+        supabase.from('pembelian_perhiasan').select('*', { count: 'exact', head: true })
+      )
+      if (countResult.error) throw countResult.error
+
+      const sums = await sumNumericFields(
+        (from, to) =>
+          applySearch(
+            supabase.from('pembelian_perhiasan').select('harga')
+          ).range(from, to),
+        ['harga']
+      )
+
+      setTotalCount(countResult.count ?? 0)
+      setTotalNilai(sums.harga)
+    } catch (error) {
+      console.error('Error loading purchase stats:', error)
+    }
+  }, [supabase, applySearch])
+
+  const loadPurchases = useCallback(async () => {
+    setLoading(true)
+    try {
+      const { from, to } = pageRange(page, pageSize)
+      const { data, error, count } = await applySearch(
+        supabase
+          .from('pembelian_perhiasan')
+          .select('*', { count: 'exact' })
+          .order('created_at', { ascending: false })
+      ).range(from, to)
 
       if (error) throw error
-      setPurchases(data || [])
-      setFilteredPurchases(data || [])
+      setPurchases((data as PembelianPerhiasan[]) || [])
+      if (count != null) setTotalCount(count)
     } catch (error) {
       console.error('Error loading purchases:', error)
     } finally {
       setLoading(false)
     }
-  }, [supabase])
+  }, [supabase, applySearch, page, pageSize])
+
+  useEffect(() => {
+    loadStats()
+  }, [loadStats])
 
   useEffect(() => {
     loadPurchases()
   }, [loadPurchases])
-
-  useEffect(() => {
-    const q = searchTerm.toLowerCase()
-    const filtered = purchases.filter(item =>
-      item.nama.toLowerCase().includes(q) ||
-      item.perhiasan.toLowerCase().includes(q) ||
-      item.seri.toLowerCase().includes(q) ||
-      (item.kadar != null && String(item.kadar).includes(searchTerm))
-    )
-    setFilteredPurchases(filtered)
-  }, [searchTerm, purchases])
 
   async function handleDelete(seri: string) {
     if (!await confirmDialog('Apakah Anda yakin ingin menghapus data ini?')) return
@@ -60,14 +112,14 @@ export default function PurchasesPage() {
         .eq('seri', seri)
 
       if (error) throw error
-      loadPurchases()
+      await Promise.all([loadPurchases(), loadStats()])
     } catch (error) {
       console.error('Error deleting purchase:', error)
       await alertDialog('Gagal menghapus data')
     }
   }
 
-  if (loading) {
+  if (loading && purchases.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="w-12 h-12 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
@@ -109,12 +161,12 @@ export default function PurchasesPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-white rounded-xl shadow-md p-6">
           <p className="text-gray-600 text-sm mb-1">Total Pembelian</p>
-          <p className="text-3xl font-bold text-gray-900">{filteredPurchases.length}</p>
+          <p className="text-3xl font-bold text-gray-900">{totalCount}</p>
         </div>
         <div className="bg-white rounded-xl shadow-md p-6">
           <p className="text-gray-600 text-sm mb-1">Total Nilai</p>
           <p className="text-2xl font-bold text-gray-900">
-            {formatCurrency(filteredPurchases.reduce((sum, item) => sum + Number(item.harga), 0))}
+            {formatCurrency(totalNilai)}
           </p>
         </div>
       </div>
@@ -136,14 +188,14 @@ export default function PurchasesPage() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredPurchases.length === 0 ? (
+              {purchases.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="px-6 py-12 text-center text-gray-500">
                     Tidak ada data pembelian
                   </td>
                 </tr>
               ) : (
-                filteredPurchases.map((item) => (
+                purchases.map((item) => (
                   <tr key={item.seri} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {item.seri}
@@ -200,6 +252,14 @@ export default function PurchasesPage() {
             </tbody>
           </table>
         </div>
+        <TablePagination
+          page={page}
+          pageSize={pageSize}
+          totalCount={totalCount}
+          loading={loading}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
       </div>
     </div>
   )

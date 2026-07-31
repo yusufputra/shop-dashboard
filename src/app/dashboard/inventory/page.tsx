@@ -12,18 +12,149 @@ import { StokPerhiasan } from '@/types/database'
 import Link from 'next/link'
 import { useDashboardAuth } from '@/app/dashboard/dashboard-auth-context'
 import { DateFilterInput } from '@/components/date-filter-input'
+import { TablePagination } from '@/components/table-pagination'
 import * as XLSX from 'xlsx'
+import type { DbProxyClient } from '@/lib/api/db-client'
+import {
+  DEFAULT_PAGE_SIZE,
+  FETCH_PAGE_SIZE,
+  pageRange,
+  sanitizeSearchTerm,
+  searchOrExpression,
+  type PageSize,
+} from '@/lib/pagination'
 
 interface StokWithPurchase extends StokPerhiasan {
-  sale_date?: string | null  // Date when sold to customer
+  sale_date?: string | null
+}
+
+type InventoryStats = {
+  total: number
+  available: number
+  sold: number
+  beratMasuk: number
+  beratKeluar: number
+  totalNilai: number
+}
+
+type StockQuery = ReturnType<ReturnType<DbProxyClient['from']>['select']>
+
+function applyStockFilters(
+  query: StockQuery,
+  opts: {
+    searchTerm: string
+    filterTanggalMasuk: string
+    filterStatus: string
+    filterKadar: string
+    filterWarna: string
+    filterPerhiasan: string
+    filterKodePabrik: string
+    seriIn: string[] | null
+  }
+) {
+  let q = query
+  const term = sanitizeSearchTerm(opts.searchTerm)
+  if (term) {
+    q = q.or(
+      searchOrExpression(
+        ['seri', 'jenis', 'model', 'perhiasan', 'fyen', 'kode_pabrik'],
+        term
+      )
+    )
+  }
+  if (opts.filterTanggalMasuk) {
+    q = q.eq('tanggal', opts.filterTanggalMasuk)
+  }
+  if (opts.filterStatus) {
+    q = q.eq('status', opts.filterStatus)
+  }
+  if (opts.filterKadar) {
+    q = q.eq('jenis', opts.filterKadar)
+  }
+  if (opts.filterWarna) {
+    q = q.eq('warna', opts.filterWarna)
+  }
+  if (opts.filterPerhiasan) {
+    q = q.eq('perhiasan', opts.filterPerhiasan)
+  }
+  if (opts.filterKodePabrik) {
+    q = q.eq('kode_pabrik', opts.filterKodePabrik)
+  }
+  if (opts.seriIn) {
+    if (opts.seriIn.length === 0) {
+      q = q.eq('seri', '__no_match__')
+    } else {
+      q = q.in('seri', opts.seriIn)
+    }
+  }
+  return q
+}
+
+async function fetchSerisBySaleDate(
+  supabase: DbProxyClient,
+  tanggalKeluar: string
+): Promise<string[]> {
+  const seris: string[] = []
+  let from = 0
+  while (true) {
+    const { data, error } = await supabase
+      .from('penjualan_perhiasan')
+      .select('stok_seri')
+      .eq('tanggal', tanggalKeluar)
+      .range(from, from + FETCH_PAGE_SIZE - 1)
+
+    if (error) throw error
+    if (!data?.length) break
+    for (const row of data) {
+      if (row.stok_seri) seris.push(String(row.stok_seri))
+    }
+    if (data.length < FETCH_PAGE_SIZE) break
+    from += FETCH_PAGE_SIZE
+  }
+  return seris
+}
+
+async function fetchAllMatchingStock(
+  supabase: DbProxyClient,
+  filterOpts: Parameters<typeof applyStockFilters>[1]
+): Promise<StokPerhiasan[]> {
+  const rows: StokPerhiasan[] = []
+  let from = 0
+  while (true) {
+    const { data, error } = await applyStockFilters(
+      supabase
+        .from('stok_perhiasan')
+        .select('*')
+        .order('created_at', { ascending: false }),
+      filterOpts
+    ).range(from, from + FETCH_PAGE_SIZE - 1)
+
+    if (error) throw error
+    if (!data?.length) break
+    rows.push(...(data as StokPerhiasan[]))
+    if (data.length < FETCH_PAGE_SIZE) break
+    from += FETCH_PAGE_SIZE
+  }
+  return rows
 }
 
 export default function InventoryPage() {
   const { can } = useDashboardAuth()
   const [inventory, setInventory] = useState<StokWithPurchase[]>([])
-  const [filteredInventory, setFilteredInventory] = useState<StokWithPurchase[]>([])
+  const [stats, setStats] = useState<InventoryStats>({
+    total: 0,
+    available: 0,
+    sold: 0,
+    beratMasuk: 0,
+    beratKeluar: 0,
+    totalNilai: 0,
+  })
+  const [totalCount, setTotalCount] = useState(0)
+  const [page, setPage] = useState(0)
+  const [pageSize, setPageSize] = useState<PageSize>(DEFAULT_PAGE_SIZE)
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [showFilters, setShowFilters] = useState(false)
   const [filterTanggalMasuk, setFilterTanggalMasuk] = useState('')
   const [filterTanggalKeluar, setFilterTanggalKeluar] = useState('')
@@ -32,116 +163,27 @@ export default function InventoryPage() {
   const [filterWarna, setFilterWarna] = useState('')
   const [filterPerhiasan, setFilterPerhiasan] = useState('')
   const [filterKodePabrik, setFilterKodePabrik] = useState('')
+  const [kodePabrikOptions, setKodePabrikOptions] = useState<string[]>([])
   const supabase = createClient()
 
   const kadarOptions = useMemo(() => {
-    const fromData = inventory.map(item => item.jenis).filter(Boolean)
-    const unique = [...new Set([...KADAR_K_OPTIONS, ...fromData])]
-    return unique.sort((a, b) => {
+    return [...KADAR_K_OPTIONS].sort((a, b) => {
       const numA = parseInt(a, 10)
       const numB = parseInt(b, 10)
       if (!Number.isNaN(numA) && !Number.isNaN(numB)) return numA - numB
       return a.localeCompare(b)
     })
-  }, [inventory])
-
-  const kodePabrikOptions = useMemo(() => {
-    const values = inventory
-      .map(item => item.kode_pabrik?.trim())
-      .filter((v): v is string => Boolean(v))
-    return [...new Set(values)].sort((a, b) => a.localeCompare(b))
-  }, [inventory])
-
-  const loadInventory = useCallback(async () => {
-    try {
-      // Fetch all inventory items
-      const { data: stockData, error: stockError } = await supabase
-        .from('stok_perhiasan')
-        .select('*')
-        .order('created_at', { ascending: false })
-
-      if (stockError) throw stockError
-
-      // Fetch all sales to get the sale dates
-      const { data: salesData, error: salesError } = await supabase
-        .from('penjualan_perhiasan')
-        .select('stok_seri, tanggal')
-
-      if (salesError) throw salesError
-
-      // Create a map of sale dates by stok_seri
-      const salesMap = new Map(
-        salesData?.map(s => [s.stok_seri, s.tanggal]) || []
-      )
-
-      // Merge the data
-      const mergedData = stockData?.map(item => {
-        const saleDate = item.status === 'sold' ? salesMap.get(item.seri) : null
-
-        return {
-          ...item,
-          sale_date: saleDate
-        }
-      }) || []
-
-      setInventory(mergedData)
-      setFilteredInventory(mergedData)
-    } catch (error) {
-      console.error('Error loading inventory:', error)
-    } finally {
-      setLoading(false)
-    }
-  }, [supabase])
+  }, [])
 
   useEffect(() => {
-    loadInventory()
-  }, [loadInventory])
+    const timer = setTimeout(() => setDebouncedSearch(searchTerm), 300)
+    return () => clearTimeout(timer)
+  }, [searchTerm])
 
   useEffect(() => {
-    let filtered = inventory.filter(item =>
-      item.perhiasan.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.jenis.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.seri.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.fyen ?? '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.kode_pabrik ?? '').toLowerCase().includes(searchTerm.toLowerCase())
-    )
-
-    // Filter by Tanggal Masuk
-    if (filterTanggalMasuk) {
-      filtered = filtered.filter(item => item.tanggal === filterTanggalMasuk)
-    }
-
-    // Filter by Tanggal Keluar (sale date)
-    if (filterTanggalKeluar) {
-      filtered = filtered.filter(item =>
-        item.sale_date === filterTanggalKeluar
-      )
-    }
-
-    if (filterStatus) {
-      filtered = filtered.filter(item => item.status === filterStatus)
-    }
-
-    if (filterKadar) {
-      filtered = filtered.filter(item => item.jenis === filterKadar)
-    }
-
-    if (filterWarna) {
-      filtered = filtered.filter(item => item.warna === filterWarna)
-    }
-
-    if (filterPerhiasan) {
-      filtered = filtered.filter(item => item.perhiasan === filterPerhiasan)
-    }
-
-    if (filterKodePabrik) {
-      filtered = filtered.filter(item => (item.kode_pabrik?.trim() ?? '') === filterKodePabrik)
-    }
-
-    setFilteredInventory(filtered)
+    setPage(0)
   }, [
-    searchTerm,
+    debouncedSearch,
     filterTanggalMasuk,
     filterTanggalKeluar,
     filterStatus,
@@ -149,8 +191,202 @@ export default function InventoryPage() {
     filterWarna,
     filterPerhiasan,
     filterKodePabrik,
-    inventory,
   ])
+
+  const loadKodePabrikOptions = useCallback(async () => {
+    try {
+      const values = new Set<string>()
+      let from = 0
+      while (true) {
+        const { data, error } = await supabase
+          .from('stok_perhiasan')
+          .select('kode_pabrik')
+          .range(from, from + FETCH_PAGE_SIZE - 1)
+
+        if (error) throw error
+        if (!data?.length) break
+        for (const row of data) {
+          const kode = String(row.kode_pabrik ?? '').trim()
+          if (kode) values.add(kode)
+        }
+        if (data.length < FETCH_PAGE_SIZE) break
+        from += FETCH_PAGE_SIZE
+      }
+      setKodePabrikOptions([...values].sort((a, b) => a.localeCompare(b)))
+    } catch (error) {
+      console.error('Error loading kode pabrik options:', error)
+    }
+  }, [supabase])
+
+  const resolveFilterOpts = useCallback(async () => {
+    const seriIn = filterTanggalKeluar
+      ? await fetchSerisBySaleDate(supabase, filterTanggalKeluar)
+      : null
+
+    return {
+      searchTerm: debouncedSearch,
+      filterTanggalMasuk,
+      filterStatus,
+      filterKadar,
+      filterWarna,
+      filterPerhiasan,
+      filterKodePabrik,
+      seriIn,
+    }
+  }, [
+    supabase,
+    debouncedSearch,
+    filterTanggalMasuk,
+    filterTanggalKeluar,
+    filterStatus,
+    filterKadar,
+    filterWarna,
+    filterPerhiasan,
+    filterKodePabrik,
+  ])
+
+  const loadStats = useCallback(async () => {
+    try {
+      const filterOpts = await resolveFilterOpts()
+
+      const countQueries = [
+        applyStockFilters(
+          supabase.from('stok_perhiasan').select('*', { count: 'exact', head: true }),
+          filterOpts
+        ),
+      ]
+
+      // Status breakdown only when not already narrowed by status filter.
+      if (!filterStatus) {
+        countQueries.push(
+          applyStockFilters(
+            supabase.from('stok_perhiasan').select('*', { count: 'exact', head: true }),
+            { ...filterOpts, filterStatus: 'available' }
+          ),
+          applyStockFilters(
+            supabase.from('stok_perhiasan').select('*', { count: 'exact', head: true }),
+            { ...filterOpts, filterStatus: 'sold' }
+          )
+        )
+      }
+
+      const countResults = await Promise.all(countQueries)
+      for (const result of countResults) {
+        if (result.error) throw result.error
+      }
+
+      const total = countResults[0].count ?? 0
+      let available = 0
+      let sold = 0
+      if (filterStatus === 'available') {
+        available = total
+      } else if (filterStatus === 'sold') {
+        sold = total
+      } else {
+        available = countResults[1]?.count ?? 0
+        sold = countResults[2]?.count ?? 0
+      }
+
+      let beratMasuk = 0
+      let beratKeluar = 0
+      let totalNilai = 0
+      let aggFrom = 0
+      while (true) {
+        const { data: aggRows, error: aggError } = await applyStockFilters(
+          supabase.from('stok_perhiasan').select('berat, harga, status'),
+          filterOpts
+        ).range(aggFrom, aggFrom + FETCH_PAGE_SIZE - 1)
+
+        if (aggError) throw aggError
+        if (!aggRows?.length) break
+
+        for (const row of aggRows) {
+          const berat = Number(row.berat) || 0
+          const harga = Number(row.harga) || 0
+          beratMasuk += berat
+          totalNilai += harga
+          if (row.status === 'sold') beratKeluar += berat
+        }
+
+        if (aggRows.length < FETCH_PAGE_SIZE) break
+        aggFrom += FETCH_PAGE_SIZE
+      }
+
+      setTotalCount(total)
+      setStats({
+        total,
+        available,
+        sold,
+        beratMasuk,
+        beratKeluar,
+        totalNilai,
+      })
+    } catch (error) {
+      console.error('Error loading inventory stats:', error)
+    }
+  }, [supabase, resolveFilterOpts, filterStatus])
+
+  const loadInventory = useCallback(async () => {
+    setLoading(true)
+    try {
+      const filterOpts = await resolveFilterOpts()
+      const { from, to } = pageRange(page, pageSize)
+
+      const pageResult = await applyStockFilters(
+        supabase
+          .from('stok_perhiasan')
+          .select('*', { count: 'exact' })
+          .order('created_at', { ascending: false }),
+        filterOpts
+      ).range(from, to)
+
+      if (pageResult.error) throw pageResult.error
+
+      const stockData = (pageResult.data ?? []) as StokPerhiasan[]
+      const soldSeris = stockData
+        .filter((item) => item.status === 'sold')
+        .map((item) => item.seri)
+
+      let salesMap = new Map<string, string>()
+      if (soldSeris.length > 0) {
+        const { data: salesData, error: salesError } = await supabase
+          .from('penjualan_perhiasan')
+          .select('stok_seri, tanggal')
+          .in('stok_seri', soldSeris)
+
+        if (salesError) throw salesError
+        salesMap = new Map(
+          (salesData ?? []).map((s) => [String(s.stok_seri), String(s.tanggal)])
+        )
+      }
+
+      setInventory(
+        stockData.map((item) => ({
+          ...item,
+          sale_date: item.status === 'sold' ? salesMap.get(item.seri) ?? null : null,
+        }))
+      )
+      if (pageResult.count != null) {
+        setTotalCount(pageResult.count)
+      }
+    } catch (error) {
+      console.error('Error loading inventory:', error)
+    } finally {
+      setLoading(false)
+    }
+  }, [supabase, page, pageSize, resolveFilterOpts])
+
+  useEffect(() => {
+    loadKodePabrikOptions()
+  }, [loadKodePabrikOptions])
+
+  useEffect(() => {
+    loadStats()
+  }, [loadStats])
+
+  useEffect(() => {
+    loadInventory()
+  }, [loadInventory])
 
   const hasActiveFilters =
     filterTanggalMasuk ||
@@ -171,53 +407,95 @@ export default function InventoryPage() {
     setFilterKodePabrik('')
   }
 
-  function exportToExcel() {
-    const exportData = filteredInventory.map(item => ({
-      'Seri': item.seri,
-      'Tanggal Masuk': new Date(item.tanggal).toLocaleDateString('id-ID'),
-      'Tanggal Keluar': item.sale_date
-        ? new Date(item.sale_date).toLocaleDateString('id-ID')
-        : '',
-      'Status': item.status === 'sold' ? 'Terjual' : 'Tersedia',
-      'Kadar': item.jenis,
-      'Warna': item.warna ? warnaLabel(item.warna) : '',
-      'Perhiasan': item.perhiasan,
-      'Kode Pabrik': item.kode_pabrik?.trim() ?? '',
-      'Model': item.model,
-      'Fyen': item.fyen?.trim() ?? '',
-      'Berat': Number(item.berat),
-      'Harga': Number(item.harga),
-      'Dibuat oleh': formatCreatedByLabel(item.created_by_nama),
-    }))
+  async function exportToExcel() {
+    try {
+      const seriIn = filterTanggalKeluar
+        ? await fetchSerisBySaleDate(supabase, filterTanggalKeluar)
+        : null
 
-    const summary = [
-      {},
-      { 'Seri': 'RINGKASAN' },
-      { 'Seri': 'Total Item', 'Harga': filteredInventory.length },
-      {
-        'Seri': 'Tersedia',
-        'Harga': filteredInventory.filter(item => item.status === 'available').length,
-      },
-      {
-        'Seri': 'Terjual',
-        'Harga': filteredInventory.filter(item => item.status === 'sold').length,
-      },
-      {
-        'Seri': 'Total Berat',
-        'Berat': filteredInventory.reduce((sum, item) => sum + Number(item.berat), 0),
-      },
-      {
-        'Seri': 'Total Nilai',
-        'Harga': filteredInventory.reduce((sum, item) => sum + Number(item.harga), 0),
-      },
-    ]
+      const filterOpts = {
+        searchTerm: debouncedSearch,
+        filterTanggalMasuk,
+        filterStatus,
+        filterKadar,
+        filterWarna,
+        filterPerhiasan,
+        filterKodePabrik,
+        seriIn,
+      }
 
-    const ws = XLSX.utils.json_to_sheet([...exportData, ...summary])
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, 'Stok Perhiasan')
+      const allStock = await fetchAllMatchingStock(supabase, filterOpts)
+      const soldSeris = allStock
+        .filter((item) => item.status === 'sold')
+        .map((item) => item.seri)
 
-    const dateStamp = new Date().toISOString().split('T')[0]
-    XLSX.writeFile(wb, `stok-perhiasan-${dateStamp}.xlsx`)
+      const salesMap = new Map<string, string>()
+      for (let i = 0; i < soldSeris.length; i += FETCH_PAGE_SIZE) {
+        const chunk = soldSeris.slice(i, i + FETCH_PAGE_SIZE)
+        if (chunk.length === 0) continue
+        const { data: salesData, error } = await supabase
+          .from('penjualan_perhiasan')
+          .select('stok_seri, tanggal')
+          .in('stok_seri', chunk)
+        if (error) throw error
+        for (const s of salesData ?? []) {
+          salesMap.set(String(s.stok_seri), String(s.tanggal))
+        }
+      }
+
+      const exportData = allStock.map((item) => {
+        const saleDate = item.status === 'sold' ? salesMap.get(item.seri) : null
+        return {
+          Seri: item.seri,
+          'Tanggal Masuk': new Date(item.tanggal).toLocaleDateString('id-ID'),
+          'Tanggal Keluar': saleDate
+            ? new Date(saleDate).toLocaleDateString('id-ID')
+            : '',
+          Status: item.status === 'sold' ? 'Terjual' : 'Tersedia',
+          Kadar: item.jenis,
+          Warna: item.warna ? warnaLabel(item.warna) : '',
+          Perhiasan: item.perhiasan,
+          'Kode Pabrik': item.kode_pabrik?.trim() ?? '',
+          Model: item.model,
+          Fyen: item.fyen?.trim() ?? '',
+          Berat: Number(item.berat),
+          Harga: Number(item.harga),
+          'Dibuat oleh': formatCreatedByLabel(item.created_by_nama),
+        }
+      })
+
+      const summary = [
+        {},
+        { Seri: 'RINGKASAN' },
+        { Seri: 'Total Item', Harga: allStock.length },
+        {
+          Seri: 'Tersedia',
+          Harga: allStock.filter((item) => item.status === 'available').length,
+        },
+        {
+          Seri: 'Terjual',
+          Harga: allStock.filter((item) => item.status === 'sold').length,
+        },
+        {
+          Seri: 'Total Berat',
+          Berat: allStock.reduce((sum, item) => sum + Number(item.berat), 0),
+        },
+        {
+          Seri: 'Total Nilai',
+          Harga: allStock.reduce((sum, item) => sum + Number(item.harga), 0),
+        },
+      ]
+
+      const ws = XLSX.utils.json_to_sheet([...exportData, ...summary])
+      const wb = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(wb, ws, 'Stok Perhiasan')
+
+      const dateStamp = new Date().toISOString().split('T')[0]
+      XLSX.writeFile(wb, `stok-perhiasan-${dateStamp}.xlsx`)
+    } catch (error) {
+      console.error('Error exporting inventory:', error)
+      await alertDialog('Gagal mengekspor data')
+    }
   }
 
   async function handleDelete(seri: string) {
@@ -230,14 +508,14 @@ export default function InventoryPage() {
         .eq('seri', seri)
 
       if (error) throw error
-      loadInventory()
+      await Promise.all([loadInventory(), loadStats(), loadKodePabrikOptions()])
     } catch (error) {
       console.error('Error deleting item:', error)
       await alertDialog('Gagal menghapus data')
     }
   }
 
-  if (loading) {
+  if (loading && inventory.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="w-12 h-12 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
@@ -287,7 +565,7 @@ export default function InventoryPage() {
           </button>
           <button
             onClick={exportToExcel}
-            disabled={filteredInventory.length === 0}
+            disabled={totalCount === 0}
             className="flex items-center gap-2 px-4 py-2 text-sm text-white bg-green-500 rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Download className="w-4 h-4" />
@@ -331,7 +609,7 @@ export default function InventoryPage() {
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black bg-white"
               >
                 <option value="">Semua Kadar</option>
-                {kadarOptions.map(kadar => (
+                {kadarOptions.map((kadar) => (
                   <option key={kadar} value={kadar}>{kadar}</option>
                 ))}
               </select>
@@ -346,7 +624,7 @@ export default function InventoryPage() {
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black bg-white"
               >
                 <option value="">Semua Warna</option>
-                {WARNA_OPTIONS.map(warna => (
+                {WARNA_OPTIONS.map((warna) => (
                   <option key={warna.value} value={warna.value}>{warna.label}</option>
                 ))}
               </select>
@@ -361,7 +639,7 @@ export default function InventoryPage() {
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black bg-white"
               >
                 <option value="">Semua Perhiasan</option>
-                {PERHIASAN_OPTIONS.map(perhiasan => (
+                {PERHIASAN_OPTIONS.map((perhiasan) => (
                   <option key={perhiasan} value={perhiasan}>{perhiasan}</option>
                 ))}
               </select>
@@ -376,7 +654,7 @@ export default function InventoryPage() {
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black bg-white"
               >
                 <option value="">Semua Kode Pabrik</option>
-                {kodePabrikOptions.map(kode => (
+                {kodePabrikOptions.map((kode) => (
                   <option key={kode} value={kode}>{kode}</option>
                 ))}
               </select>
@@ -399,36 +677,32 @@ export default function InventoryPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white rounded-xl shadow-md p-6">
           <p className="text-gray-600 text-sm mb-1">Total Item</p>
-          <p className="text-3xl font-bold text-gray-900">{filteredInventory.length}</p>
+          <p className="text-3xl font-bold text-gray-900">{stats.total}</p>
         </div>
         <div className="bg-white rounded-xl shadow-md p-6">
           <p className="text-gray-600 text-sm mb-1">Tersedia</p>
-          <p className="text-3xl font-bold text-green-600">
-            {filteredInventory.filter(item => item.status === 'available').length}
-          </p>
+          <p className="text-3xl font-bold text-green-600">{stats.available}</p>
         </div>
         <div className="bg-white rounded-xl shadow-md p-6">
           <p className="text-gray-600 text-sm mb-1">Terjual</p>
-          <p className="text-3xl font-bold text-red-600">
-            {filteredInventory.filter(item => item.status === 'sold').length}
-          </p>
+          <p className="text-3xl font-bold text-red-600">{stats.sold}</p>
         </div>
         <div className="bg-white rounded-xl shadow-md p-6">
           <p className="text-gray-600 text-sm mb-1">Total Berat Masuk</p>
           <p className="text-3xl font-bold text-gray-900">
-            {formatWeight(filteredInventory.reduce((sum, item) => sum + Number(item.berat), 0))}
+            {formatWeight(stats.beratMasuk)}
           </p>
         </div>
         <div className="bg-white rounded-xl shadow-md p-6">
           <p className="text-gray-600 text-sm mb-1">Total Berat Keluar</p>
           <p className="text-3xl font-bold text-gray-900">
-            {formatWeight(filteredInventory.filter(item => item.status === 'sold').reduce((sum, item) => sum + Number(item.berat), 0))}
+            {formatWeight(stats.beratKeluar)}
           </p>
         </div>
         <div className="bg-white rounded-xl shadow-md p-6">
           <p className="text-gray-600 text-sm mb-1">Total Nilai</p>
           <p className="text-2xl font-bold text-gray-900">
-            {formatCurrency(filteredInventory.reduce((sum, item) => sum + Number(item.harga), 0))}
+            {formatCurrency(stats.totalNilai)}
           </p>
         </div>
       </div>
@@ -484,14 +758,14 @@ export default function InventoryPage() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredInventory.length === 0 ? (
+              {inventory.length === 0 ? (
                 <tr>
                   <td colSpan={14} className="px-6 py-12 text-center text-gray-500">
                     Tidak ada data stok perhiasan
                   </td>
                 </tr>
               ) : (
-                filteredInventory.map((item) => (
+                inventory.map((item) => (
                   <tr key={item.seri} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {item.seri}
@@ -604,6 +878,15 @@ export default function InventoryPage() {
             </tbody>
           </table>
         </div>
+
+        <TablePagination
+          page={page}
+          pageSize={pageSize}
+          totalCount={totalCount}
+          loading={loading}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
       </div>
     </div>
   )

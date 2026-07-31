@@ -24,6 +24,12 @@ function applyFilters(query: any, filters: DbFilter[] | undefined): any {
       q = q.lte(filter.column, filter.value)
     } else if (filter.op === 'in') {
       q = q.in(filter.column, filter.value)
+    } else if (filter.op === 'ilike') {
+      q = q.ilike(filter.column, filter.value)
+    } else if (filter.op === 'is') {
+      q = q.is(filter.column, filter.value)
+    } else if (filter.op === 'or') {
+      q = q.or(filter.expression)
     } else if (filter.op === 'match') {
       for (const [column, value] of Object.entries(filter.match)) {
         if (value && typeof value === 'object' && !Array.isArray(value)) {
@@ -51,7 +57,12 @@ export async function executeSelect(
   request: DbSelectRequest
 ): Promise<DbSelectResponse> {
   const mode = request.mode ?? 'many'
-  const selectOpts = request.count === 'exact' ? ({ count: 'exact' as const, head: false }) : undefined
+  const selectOpts =
+    request.count === 'exact'
+      ? ({ count: 'exact' as const, head: request.head === true })
+      : request.head === true
+        ? ({ head: true })
+        : undefined
 
   let query = supabase.from(request.table).select(request.select, selectOpts)
   query = applyFilters(query, request.filters)
@@ -62,7 +73,9 @@ export async function executeSelect(
     })
   }
 
-  if (request.limit != null) {
+  if (request.range) {
+    query = query.range(request.range.from, request.range.to)
+  } else if (request.limit != null) {
     query = query.limit(request.limit)
   }
 
