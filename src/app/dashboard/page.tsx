@@ -21,6 +21,7 @@ import {
 
 interface Stats {
   totalInventory: number
+  totalAvailableInventory: number
   totalPurchases: number
   totalOrders: number
   totalRevenue: number
@@ -88,6 +89,7 @@ export default function DashboardPage() {
   const { can, ready: authReady } = useDashboardAuth()
   const [stats, setStats] = useState<Stats>({
     totalInventory: 0,
+    totalAvailableInventory: 0,
     totalPurchases: 0,
     totalOrders: 0,
     totalRevenue: 0,
@@ -96,35 +98,48 @@ export default function DashboardPage() {
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([])
   const [loading, setLoading] = useState(true)
   const [filterType, setFilterType] = useState<FilterType>('all')
-  const [selectedDate, setSelectedDate] = useState('')
-  const [selectedMonth, setSelectedMonth] = useState('')
-  const [selectedYear, setSelectedYear] = useState('')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const [startMonth, setStartMonth] = useState('')
+  const [endMonth, setEndMonth] = useState('')
+  const [startYear, setStartYear] = useState('')
+  const [endYear, setEndYear] = useState('')
   const [recapData, setRecapData] = useState<RecapData[]>([])
   const [exportRows, setExportRows] = useState<ExportRow[]>([])
   const [recapPage, setRecapPage] = useState(0)
   const [recapPageSize, setRecapPageSize] = useState<PageSize>(DEFAULT_PAGE_SIZE)
   const supabase = createClient()
 
-  const buildDateFilter = useCallback(() => {
-    if (filterType === 'date' && selectedDate) {
-      return { tanggal: selectedDate }
-    }
-    if (filterType === 'month' && selectedMonth) {
-      const [year, month] = selectedMonth.split('-')
-      const startDate = `${year}-${month}-01`
-      const endDate = `${year}-${month}-${new Date(parseInt(year), parseInt(month), 0).getDate()}`
-      return { tanggal: { gte: startDate, lte: endDate } }
-    }
-    if (filterType === 'year' && selectedYear) {
+  const buildDateFilter = useCallback((): { gte?: string; lte?: string } => {
+    if (filterType === 'date') {
+      if (!startDate && !endDate) return {}
       return {
-        tanggal: {
-          gte: `${selectedYear}-01-01`,
-          lte: `${selectedYear}-12-31`,
-        },
+        ...(startDate ? { gte: startDate } : {}),
+        ...(endDate ? { lte: endDate } : {}),
+      }
+    }
+    if (filterType === 'month') {
+      if (!startMonth && !endMonth) return {}
+      const range: { gte?: string; lte?: string } = {}
+      if (startMonth) {
+        const [year, month] = startMonth.split('-')
+        range.gte = `${year}-${month}-01`
+      }
+      if (endMonth) {
+        const [year, month] = endMonth.split('-')
+        range.lte = `${year}-${month}-${new Date(parseInt(year), parseInt(month), 0).getDate()}`
+      }
+      return range
+    }
+    if (filterType === 'year') {
+      if (!startYear && !endYear) return {}
+      return {
+        ...(startYear ? { gte: `${startYear}-01-01` } : {}),
+        ...(endYear ? { lte: `${endYear}-12-31` } : {}),
       }
     }
     return {}
-  }, [filterType, selectedDate, selectedMonth, selectedYear])
+  }, [filterType, startDate, endDate, startMonth, endMonth, startYear, endYear])
 
   const loadMonthlyData = useCallback(async () => {
     try {
@@ -200,14 +215,24 @@ export default function DashboardPage() {
   const loadStatsAndData = useCallback(async () => {
     try {
       const dateFilter = buildDateFilter()
-      const hasDateFilter = Object.keys(dateFilter).length > 0
 
-      const applyDate = <T extends { match: (m: Record<string, unknown>) => T }>(query: T) =>
-        hasDateFilter ? query.match(dateFilter) : query
+      const applyDate = <T extends {
+        gte: (column: string, value: string) => T
+        lte: (column: string, value: string) => T
+      }>(query: T) => {
+        let next = query
+        if (dateFilter.gte) next = next.gte('tanggal', dateFilter.gte)
+        if (dateFilter.lte) next = next.lte('tanggal', dateFilter.lte)
+        return next
+      }
 
-      const [inventory, purchasesCount, ordersCount, salesSum, purchaseSum, purchases, orders, sales] =
+      const [inventory, availableInventory, purchasesCount, ordersCount, salesSum, purchaseSum, purchases, orders, sales] =
         await Promise.all([
           supabase.from('stok_perhiasan').select('*', { count: 'exact', head: true }),
+          supabase
+            .from('stok_perhiasan')
+            .select('*', { count: 'exact', head: true })
+            .eq('status', 'available'),
           applyDate(
             supabase.from('pembelian_perhiasan').select('*', { count: 'exact', head: true })
           ),
@@ -252,11 +277,13 @@ export default function DashboardPage() {
         ])
 
       if (inventory.error) throw inventory.error
+      if (availableInventory.error) throw availableInventory.error
       if (purchasesCount.error) throw purchasesCount.error
       if (ordersCount.error) throw ordersCount.error
 
       setStats({
         totalInventory: inventory.count || 0,
+        totalAvailableInventory: availableInventory.count || 0,
         totalPurchases: purchasesCount.count || 0,
         totalOrders: ordersCount.count || 0,
         totalRevenue: salesSum.harga_jual,
@@ -430,6 +457,7 @@ export default function DashboardPage() {
       { 'Tanggal': 'Total Pembelian', 'Jumlah Harga': stats.totalPurchaseAmount },
       { 'Tanggal': 'Total Pesanan', 'Jumlah Harga': stats.totalOrders },
       { 'Tanggal': 'Total Stok', 'Jumlah Harga': stats.totalInventory },
+      { 'Tanggal': 'Total Stok Tersedia', 'Jumlah Harga': stats.totalAvailableInventory },
     ]
 
     const fullData = [...exportData, ...summary]
@@ -443,12 +471,12 @@ export default function DashboardPage() {
 
     // Generate filename with filter info
     let filename = 'rekap-toko-emas'
-    if (filterType === 'date' && selectedDate) {
-      filename += `-${selectedDate}`
-    } else if (filterType === 'month' && selectedMonth) {
-      filename += `-${selectedMonth}`
-    } else if (filterType === 'year' && selectedYear) {
-      filename += `-${selectedYear}`
+    if (filterType === 'date' && (startDate || endDate)) {
+      filename += `-${startDate || 'start'}_to_${endDate || 'end'}`
+    } else if (filterType === 'month' && (startMonth || endMonth)) {
+      filename += `-${startMonth || 'start'}_to_${endMonth || 'end'}`
+    } else if (filterType === 'year' && (startYear || endYear)) {
+      filename += `-${startYear || 'start'}_to_${endYear || 'end'}`
     }
     filename += '.xlsx'
 
@@ -458,15 +486,26 @@ export default function DashboardPage() {
 
   const handleFilterChange = (type: FilterType) => {
     setFilterType(type)
-    setSelectedDate('')
-    setSelectedMonth('')
-    setSelectedYear('')
+    setStartDate('')
+    setEndDate('')
+    setStartMonth('')
+    setEndMonth('')
+    setStartYear('')
+    setEndYear('')
   }
 
   const statCards = [
     {
       name: 'Total Stok',
       value: stats.totalInventory,
+      icon: Package,
+      color: 'from-blue-500 to-blue-600',
+      bgColor: 'bg-blue-50',
+      textColor: 'text-blue-600'
+    },
+    {
+      name: 'Total Stok Tersedia',
+      value: stats.totalAvailableInventory,
       icon: Package,
       color: 'from-blue-500 to-blue-600',
       bgColor: 'bg-blue-50',
@@ -533,7 +572,7 @@ export default function DashboardPage() {
           <h3 className="text-lg font-semibold text-gray-900">Filter Data</h3>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Tipe Filter</label>
             <select
@@ -549,42 +588,82 @@ export default function DashboardPage() {
           </div>
 
           {filterType === 'date' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Pilih Tanggal</label>
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black"
-              />
-            </div>
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Tanggal Mulai</label>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  max={endDate || undefined}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Tanggal Akhir</label>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  min={startDate || undefined}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black"
+                />
+              </div>
+            </>
           )}
 
           {filterType === 'month' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Pilih Bulan</label>
-              <input
-                type="month"
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black"
-              />
-            </div>
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Bulan Mulai</label>
+                <input
+                  type="month"
+                  value={startMonth}
+                  onChange={(e) => setStartMonth(e.target.value)}
+                  max={endMonth || undefined}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Bulan Akhir</label>
+                <input
+                  type="month"
+                  value={endMonth}
+                  onChange={(e) => setEndMonth(e.target.value)}
+                  min={startMonth || undefined}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black"
+                />
+              </div>
+            </>
           )}
 
           {filterType === 'year' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Pilih Tahun</label>
-              <input
-                type="number"
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(e.target.value)}
-                placeholder="2024"
-                min="2000"
-                max="2100"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black"
-              />
-            </div>
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Tahun Mulai</label>
+                <input
+                  type="number"
+                  value={startYear}
+                  onChange={(e) => setStartYear(e.target.value)}
+                  placeholder="2024"
+                  min="2000"
+                  max={endYear || '2100'}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Tahun Akhir</label>
+                <input
+                  type="number"
+                  value={endYear}
+                  onChange={(e) => setEndYear(e.target.value)}
+                  placeholder="2026"
+                  min={startYear || '2000'}
+                  max="2100"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black"
+                />
+              </div>
+            </>
           )}
 
           <div className="flex items-end">
