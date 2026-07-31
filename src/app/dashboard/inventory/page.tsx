@@ -29,11 +29,10 @@ interface StokWithPurchase extends StokPerhiasan {
 }
 
 type InventoryStats = {
-  total: number
   available: number
   sold: number
-  beratMasuk: number
-  beratKeluar: number
+  beratTersedia: number
+  beratTerjual: number
   totalNilai: number
 }
 
@@ -142,11 +141,10 @@ export default function InventoryPage() {
   const { can } = useDashboardAuth()
   const [inventory, setInventory] = useState<StokWithPurchase[]>([])
   const [stats, setStats] = useState<InventoryStats>({
-    total: 0,
     available: 0,
     sold: 0,
-    beratMasuk: 0,
-    beratKeluar: 0,
+    beratTersedia: 0,
+    beratTerjual: 0,
     totalNilai: 0,
   })
   const [totalCount, setTotalCount] = useState(0)
@@ -249,16 +247,27 @@ export default function InventoryPage() {
     try {
       const filterOpts = await resolveFilterOpts()
 
-      const countQueries = [
-        applyStockFilters(
+      let available = 0
+      let sold = 0
+
+      if (filterStatus === 'available') {
+        const { count, error } = await applyStockFilters(
           supabase.from('stok_perhiasan').select('*', { count: 'exact', head: true }),
           filterOpts
-        ),
-      ]
-
-      // Status breakdown only when not already narrowed by status filter.
-      if (!filterStatus) {
-        countQueries.push(
+        )
+        if (error) throw error
+        available = count ?? 0
+        setTotalCount(available)
+      } else if (filterStatus === 'sold') {
+        const { count, error } = await applyStockFilters(
+          supabase.from('stok_perhiasan').select('*', { count: 'exact', head: true }),
+          filterOpts
+        )
+        if (error) throw error
+        sold = count ?? 0
+        setTotalCount(sold)
+      } else {
+        const [availableResult, soldResult] = await Promise.all([
           applyStockFilters(
             supabase.from('stok_perhiasan').select('*', { count: 'exact', head: true }),
             { ...filterOpts, filterStatus: 'available' }
@@ -266,29 +275,17 @@ export default function InventoryPage() {
           applyStockFilters(
             supabase.from('stok_perhiasan').select('*', { count: 'exact', head: true }),
             { ...filterOpts, filterStatus: 'sold' }
-          )
-        )
+          ),
+        ])
+        if (availableResult.error) throw availableResult.error
+        if (soldResult.error) throw soldResult.error
+        available = availableResult.count ?? 0
+        sold = soldResult.count ?? 0
+        setTotalCount(available + sold)
       }
 
-      const countResults = await Promise.all(countQueries)
-      for (const result of countResults) {
-        if (result.error) throw result.error
-      }
-
-      const total = countResults[0].count ?? 0
-      let available = 0
-      let sold = 0
-      if (filterStatus === 'available') {
-        available = total
-      } else if (filterStatus === 'sold') {
-        sold = total
-      } else {
-        available = countResults[1]?.count ?? 0
-        sold = countResults[2]?.count ?? 0
-      }
-
-      let beratMasuk = 0
-      let beratKeluar = 0
+      let beratTersedia = 0
+      let beratTerjual = 0
       let totalNilai = 0
       let aggFrom = 0
       while (true) {
@@ -303,22 +300,23 @@ export default function InventoryPage() {
         for (const row of aggRows) {
           const berat = Number(row.berat) || 0
           const harga = Number(row.harga) || 0
-          beratMasuk += berat
           totalNilai += harga
-          if (row.status === 'sold') beratKeluar += berat
+          if (row.status === 'sold') {
+            beratTerjual += berat
+          } else if (row.status === 'available') {
+            beratTersedia += berat
+          }
         }
 
         if (aggRows.length < FETCH_PAGE_SIZE) break
         aggFrom += FETCH_PAGE_SIZE
       }
 
-      setTotalCount(total)
       setStats({
-        total,
         available,
         sold,
-        beratMasuk,
-        beratKeluar,
+        beratTersedia,
+        beratTerjual,
         totalNilai,
       })
     } catch (error) {
@@ -467,7 +465,6 @@ export default function InventoryPage() {
       const summary = [
         {},
         { Seri: 'RINGKASAN' },
-        { Seri: 'Total Item', Harga: allStock.length },
         {
           Seri: 'Tersedia',
           Harga: allStock.filter((item) => item.status === 'available').length,
@@ -477,8 +474,16 @@ export default function InventoryPage() {
           Harga: allStock.filter((item) => item.status === 'sold').length,
         },
         {
-          Seri: 'Total Berat',
-          Berat: allStock.reduce((sum, item) => sum + Number(item.berat), 0),
+          Seri: 'Total Berat Tersedia',
+          Berat: allStock
+            .filter((item) => item.status === 'available')
+            .reduce((sum, item) => sum + Number(item.berat), 0),
+        },
+        {
+          Seri: 'Total Berat Terjual',
+          Berat: allStock
+            .filter((item) => item.status === 'sold')
+            .reduce((sum, item) => sum + Number(item.berat), 0),
         },
         {
           Seri: 'Total Nilai',
@@ -674,11 +679,7 @@ export default function InventoryPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <p className="text-gray-600 text-sm mb-1">Total Item</p>
-          <p className="text-3xl font-bold text-gray-900">{stats.total}</p>
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <div className="bg-white rounded-xl shadow-md p-6">
           <p className="text-gray-600 text-sm mb-1">Tersedia</p>
           <p className="text-3xl font-bold text-green-600">{stats.available}</p>
@@ -688,15 +689,15 @@ export default function InventoryPage() {
           <p className="text-3xl font-bold text-red-600">{stats.sold}</p>
         </div>
         <div className="bg-white rounded-xl shadow-md p-6">
-          <p className="text-gray-600 text-sm mb-1">Total Berat Masuk</p>
+          <p className="text-gray-600 text-sm mb-1">Total Berat Tersedia</p>
           <p className="text-3xl font-bold text-gray-900">
-            {formatWeight(stats.beratMasuk)}
+            {formatWeight(stats.beratTersedia)}
           </p>
         </div>
         <div className="bg-white rounded-xl shadow-md p-6">
-          <p className="text-gray-600 text-sm mb-1">Total Berat Keluar</p>
+          <p className="text-gray-600 text-sm mb-1">Total Berat Terjual</p>
           <p className="text-3xl font-bold text-gray-900">
-            {formatWeight(stats.beratKeluar)}
+            {formatWeight(stats.beratTerjual)}
           </p>
         </div>
         <div className="bg-white rounded-xl shadow-md p-6">

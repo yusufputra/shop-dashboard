@@ -5,9 +5,12 @@ export const TIPE_GELANG_OPTIONS = [
   { value: 'beagle', label: 'Beagle' },
 ] as const
 
+export const LOGAM_MULIA = 'Logam Mulia (LM)'
+
 export type InventoryDimensionForm = {
   perhiasan: string
   kode_pabrik: string
+  kode_produksi: string
   ring_cm: string
   panjang_cm: string
   tipe_gelang: string
@@ -16,6 +19,7 @@ export type InventoryDimensionForm = {
 
 export const EMPTY_INVENTORY_DIMENSIONS = {
   kode_pabrik: '',
+  kode_produksi: '',
   ring_cm: '',
   panjang_cm: '',
   tipe_gelang: '',
@@ -25,6 +29,7 @@ export const EMPTY_INVENTORY_DIMENSIONS = {
 export function clearDimensionsOnPerhiasanChange(perhiasan: string) {
   return {
     perhiasan,
+    kode_produksi: '',
     ring_cm: '',
     panjang_cm: '',
     tipe_gelang: '',
@@ -74,6 +79,7 @@ export function validateInventoryDimensions(form: InventoryDimensionForm): strin
 export function buildInventoryDimensionPayload(form: InventoryDimensionForm) {
   const base = {
     kode_pabrik: form.kode_pabrik.trim() || null,
+    kode_produksi: form.perhiasan === LOGAM_MULIA ? form.kode_produksi.trim() || null : null,
     ring_cm: null as number | null,
     panjang_cm: null as number | null,
     tipe_gelang: null as string | null,
@@ -105,6 +111,7 @@ export function inventoryDimensionsFromRow(item: StokPerhiasan): InventoryDimens
   return {
     perhiasan: item.perhiasan,
     kode_pabrik: item.kode_pabrik ?? '',
+    kode_produksi: item.kode_produksi ?? '',
     ring_cm: item.ring_cm != null ? String(item.ring_cm) : '',
     panjang_cm: item.panjang_cm != null ? String(item.panjang_cm) : '',
     tipe_gelang: item.tipe_gelang ?? '',
@@ -118,6 +125,9 @@ export function inventoryDimensionDetailLines(item: StokPerhiasan): InventoryDet
   const lines: InventoryDetailLine[] = []
   if (item.kode_pabrik?.trim()) {
     lines.push({ label: 'Kode pabrik', value: item.kode_pabrik.trim() })
+  }
+  if (item.perhiasan === LOGAM_MULIA && item.kode_produksi?.trim()) {
+    lines.push({ label: 'Kode produksi', value: item.kode_produksi.trim() })
   }
   if (item.perhiasan === 'Cincin' && item.ring_cm != null) {
     lines.push({ label: 'Ring', value: `${item.ring_cm} cm` })
