@@ -20,7 +20,6 @@ import {
 } from '@/lib/pagination'
 
 interface Stats {
-  totalInventory: number
   totalAvailableInventory: number
   totalPurchases: number
   totalOrders: number
@@ -88,7 +87,6 @@ function formatKadarFromPurchase(kadar: number | null): string {
 export default function DashboardPage() {
   const { can, ready: authReady } = useDashboardAuth()
   const [stats, setStats] = useState<Stats>({
-    totalInventory: 0,
     totalAvailableInventory: 0,
     totalPurchases: 0,
     totalOrders: 0,
@@ -226,9 +224,8 @@ export default function DashboardPage() {
         return next
       }
 
-      const [inventory, availableInventory, purchasesCount, ordersCount, salesSum, purchaseSum, purchases, orders, sales] =
+      const [availableInventory, purchasesCount, ordersCount, salesSum, purchaseSum, purchases, orders, sales] =
         await Promise.all([
-          supabase.from('stok_perhiasan').select('*', { count: 'exact', head: true }),
           supabase
             .from('stok_perhiasan')
             .select('*', { count: 'exact', head: true })
@@ -276,13 +273,11 @@ export default function DashboardPage() {
           ),
         ])
 
-      if (inventory.error) throw inventory.error
       if (availableInventory.error) throw availableInventory.error
       if (purchasesCount.error) throw purchasesCount.error
       if (ordersCount.error) throw ordersCount.error
 
       setStats({
-        totalInventory: inventory.count || 0,
         totalAvailableInventory: availableInventory.count || 0,
         totalPurchases: purchasesCount.count || 0,
         totalOrders: ordersCount.count || 0,
@@ -456,7 +451,6 @@ export default function DashboardPage() {
       { 'Tanggal': 'Total Pendapatan', 'Jumlah Harga': stats.totalRevenue },
       { 'Tanggal': 'Total Pembelian', 'Jumlah Harga': stats.totalPurchaseAmount },
       { 'Tanggal': 'Total Pesanan', 'Jumlah Harga': stats.totalOrders },
-      { 'Tanggal': 'Total Stok', 'Jumlah Harga': stats.totalInventory },
       { 'Tanggal': 'Total Stok Tersedia', 'Jumlah Harga': stats.totalAvailableInventory },
     ]
 
@@ -495,14 +489,6 @@ export default function DashboardPage() {
   }
 
   const statCards = [
-    {
-      name: 'Total Stok',
-      value: stats.totalInventory,
-      icon: Package,
-      color: 'from-blue-500 to-blue-600',
-      bgColor: 'bg-blue-50',
-      textColor: 'text-blue-600'
-    },
     {
       name: 'Total Stok Tersedia',
       value: stats.totalAvailableInventory,

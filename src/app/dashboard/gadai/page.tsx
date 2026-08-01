@@ -10,9 +10,11 @@ import { GadaiPerhiasan } from '@/types/database'
 import Link from 'next/link'
 import { useDashboardAuth } from '@/app/dashboard/dashboard-auth-context'
 import { gadaiInvoicePath } from '@/lib/gadai/invoice-path'
+import { DateRangeFilter } from '@/components/date-range-filter'
 import { TablePagination } from '@/components/table-pagination'
 import {
   DEFAULT_PAGE_SIZE,
+  applyDateRange,
   pageRange,
   sanitizeSearchTerm,
   searchOrExpression,
@@ -29,6 +31,8 @@ export default function GadaiPage() {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
   const [page, setPage] = useState(0)
   const [pageSize, setPageSize] = useState<PageSize>(DEFAULT_PAGE_SIZE)
   const supabase = createClient()
@@ -40,20 +44,26 @@ export default function GadaiPage() {
 
   useEffect(() => {
     setPage(0)
-  }, [debouncedSearch])
+  }, [debouncedSearch, startDate, endDate])
 
   const applySearch = useCallback(
-    <T extends { or: (expression: string) => T }>(query: T) => {
+    <T extends {
+      or: (expression: string) => T
+      gte: (column: string, value: string) => T
+      lte: (column: string, value: string) => T
+    }>(query: T) => {
       const term = sanitizeSearchTerm(debouncedSearch)
-      if (!term) return query
-      return query.or(
-        searchOrExpression(
-          ['nama', 'no_invoice', 'perhiasan', 'model', 'nik'],
-          term
-        )
-      )
+      const withSearch = term
+        ? query.or(
+            searchOrExpression(
+              ['nama', 'no_invoice', 'perhiasan', 'model', 'nik'],
+              term
+            )
+          )
+        : query
+      return applyDateRange(withSearch, 'tgl_peminjaman', startDate, endDate)
     },
-    [debouncedSearch]
+    [debouncedSearch, startDate, endDate]
   )
 
   const loadStats = useCallback(async () => {
@@ -172,7 +182,7 @@ export default function GadaiPage() {
         )}
       </div>
 
-      <div className="bg-white rounded-xl shadow-md p-4">
+      <div className="bg-white rounded-xl shadow-md p-4 space-y-4">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
           <input
@@ -183,6 +193,14 @@ export default function GadaiPage() {
             className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black"
           />
         </div>
+        <DateRangeFilter
+          startDate={startDate}
+          endDate={endDate}
+          onStartDateChange={setStartDate}
+          onEndDateChange={setEndDate}
+          startLabel="Tgl Peminjaman Mulai"
+          endLabel="Tgl Peminjaman Akhir"
+        />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
