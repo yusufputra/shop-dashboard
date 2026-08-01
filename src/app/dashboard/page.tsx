@@ -84,6 +84,13 @@ function formatKadarFromPurchase(kadar: number | null): string {
   return kadar != null ? `${kadar}K` : ''
 }
 
+function getCurrentMonth(): string {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  return `${year}-${month}`
+}
+
 export default function DashboardPage() {
   const { can, ready: authReady } = useDashboardAuth()
   const [stats, setStats] = useState<Stats>({
@@ -95,11 +102,11 @@ export default function DashboardPage() {
   })
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([])
   const [loading, setLoading] = useState(true)
-  const [filterType, setFilterType] = useState<FilterType>('all')
+  const [filterType, setFilterType] = useState<FilterType>('month')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
-  const [startMonth, setStartMonth] = useState('')
-  const [endMonth, setEndMonth] = useState('')
+  const [startMonth, setStartMonth] = useState(getCurrentMonth)
+  const [endMonth, setEndMonth] = useState(getCurrentMonth)
   const [startYear, setStartYear] = useState('')
   const [endYear, setEndYear] = useState('')
   const [recapData, setRecapData] = useState<RecapData[]>([])
@@ -425,6 +432,10 @@ export default function DashboardPage() {
     loadStatsAndData()
   }, [loadStatsAndData])
 
+  const isMonthlyFilter = filterType === 'month'
+  const purchaseLabel = isMonthlyFilter ? 'Total Pembelian Bulanan' : 'Total Pembelian'
+  const salesLabel = isMonthlyFilter ? 'Total Penjualan Bulanan' : 'Total Penjualan'
+
   const exportToExcel = () => {
     const exportData = exportRows.map(row => ({
       'Tanggal': new Date(row.tanggal).toLocaleDateString('id-ID'),
@@ -448,8 +459,8 @@ export default function DashboardPage() {
     const summary = [
       {},
       { 'Tanggal': 'RINGKASAN' },
-      { 'Tanggal': 'Total Pendapatan', 'Jumlah Harga': stats.totalRevenue },
-      { 'Tanggal': 'Total Pembelian', 'Jumlah Harga': stats.totalPurchaseAmount },
+      { 'Tanggal': salesLabel, 'Jumlah Harga': stats.totalRevenue },
+      { 'Tanggal': purchaseLabel, 'Jumlah Harga': stats.totalPurchaseAmount },
       { 'Tanggal': 'Total Pesanan', 'Jumlah Harga': stats.totalOrders },
       { 'Tanggal': 'Total Stok Tersedia', 'Jumlah Harga': stats.totalAvailableInventory },
     ]
@@ -482,10 +493,16 @@ export default function DashboardPage() {
     setFilterType(type)
     setStartDate('')
     setEndDate('')
-    setStartMonth('')
-    setEndMonth('')
     setStartYear('')
     setEndYear('')
+    if (type === 'month') {
+      const currentMonth = getCurrentMonth()
+      setStartMonth(currentMonth)
+      setEndMonth(currentMonth)
+    } else {
+      setStartMonth('')
+      setEndMonth('')
+    }
   }
 
   const statCards = [
@@ -498,7 +515,7 @@ export default function DashboardPage() {
       textColor: 'text-blue-600'
     },
     {
-      name: 'Total Pembelian',
+      name: purchaseLabel,
       value: formatCurrency(stats.totalPurchaseAmount),
       icon: ShoppingCart,
       color: 'from-green-500 to-green-600',
@@ -514,7 +531,7 @@ export default function DashboardPage() {
       textColor: 'text-purple-600'
     },
     {
-      name: 'Total Pendapatan',
+      name: salesLabel,
       value: formatCurrency(stats.totalRevenue),
       icon: DollarSign,
       color: 'from-amber-500 to-yellow-500',
@@ -566,10 +583,10 @@ export default function DashboardPage() {
               onChange={(e) => handleFilterChange(e.target.value as FilterType)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-black"
             >
-              <option value="all">Semua Data</option>
-              <option value="date">Per Tanggal</option>
               <option value="month">Per Bulan</option>
+              <option value="date">Per Tanggal</option>
               <option value="year">Per Tahun</option>
+              <option value="all">Seluruh Data</option>
             </select>
           </div>
 
