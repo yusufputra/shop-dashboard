@@ -14,6 +14,19 @@ export function searchOrExpression(columns: string[], term: string) {
   return columns.map((column) => `${column}.ilike.${pattern}`).join(',')
 }
 
+/** Apply inclusive start/end date bounds when provided. */
+export function applyDateRange<
+  T extends {
+    gte: (column: string, value: string) => T
+    lte: (column: string, value: string) => T
+  },
+>(query: T, column: string, startDate: string, endDate: string): T {
+  let next = query
+  if (startDate) next = next.gte(column, startDate)
+  if (endDate) next = next.lte(column, endDate)
+  return next
+}
+
 export function pageRange(page: number, pageSize: number) {
   const from = page * pageSize
   return { from, to: from + pageSize - 1 }
