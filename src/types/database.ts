@@ -271,6 +271,7 @@ export interface Database {
           model: string
           berat: number
           harga: number
+          potongan: number | null
           keterangan: string | null
           customer_id: string | null
           created_by: string | null
@@ -287,6 +288,7 @@ export interface Database {
           model: string
           berat: number
           harga: number
+          potongan?: number | null
           keterangan?: string | null
           customer_id?: string | null
           created_by?: string | null
@@ -303,6 +305,7 @@ export interface Database {
           model?: string
           berat?: number
           harga?: number
+          potongan?: number | null
           keterangan?: string | null
           customer_id?: string | null
           created_by?: string | null

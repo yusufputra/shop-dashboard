@@ -27,6 +27,7 @@ export default function EditPurchasePage({ params }: { params: Promise<{ seri: s
     model: '',
     berat: 0,
     harga: 0,
+    potongan: null,
     tanggal: new Date().toISOString().split('T')[0],
     keterangan: ''
   })
@@ -89,6 +90,7 @@ export default function EditPurchasePage({ params }: { params: Promise<{ seri: s
           model: formData.model,
           berat: formData.berat,
           harga: formData.harga,
+          potongan: formData.potongan ?? null,
           tanggal: formData.tanggal,
           keterangan: formData.keterangan || null,
           customer_id: customerId
@@ -266,6 +268,24 @@ export default function EditPurchasePage({ params }: { params: Promise<{ seri: s
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none text-black"
               placeholder="0"
               required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Potongan / Spread (Rp)
+            </label>
+            <input
+              type="number"
+              value={formData.potongan ?? ''}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  potongan: e.target.value ? parseFloat(e.target.value) : null,
+                })
+              }
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none text-black"
+              placeholder="Opsional"
             />
           </div>
 

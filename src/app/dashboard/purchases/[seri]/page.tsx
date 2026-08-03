@@ -265,6 +265,18 @@ export default function PurchaseDetailPage({ params }: { params: Promise<{ seri:
                 </div>
               </div>
 
+              {purchase.potongan != null && purchase.potongan > 0 && (
+                <div className="flex items-start gap-3">
+                  <DollarSign className="w-5 h-5 text-gray-400 mt-0.5" />
+                  <div>
+                    <p className="text-sm text-gray-600">Potongan / Spread</p>
+                    <p className="text-base font-medium text-gray-900">
+                      {formatCurrency(Number(purchase.potongan))}
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {purchase.keterangan && (
                 <div className="flex items-start gap-3">
                   <FileText className="w-5 h-5 text-gray-400 mt-0.5" />

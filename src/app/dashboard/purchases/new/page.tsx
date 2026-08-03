@@ -29,6 +29,7 @@ export default function NewPurchasePage() {
     model: '',
     berat: '',
     harga: '',
+    potongan: '',
     keterangan: '',
     customer_public_id: ''
   })
@@ -95,6 +96,7 @@ export default function NewPurchasePage() {
           model: formData.model,
           berat: parseFloat(formData.berat),
           harga: parseFloat(formData.harga),
+          potongan: formData.potongan ? parseFloat(formData.potongan) : null,
           keterangan: formData.keterangan || null,
           customer_id: customerId,
           ...createdByFields(session),
@@ -309,6 +311,20 @@ export default function NewPurchasePage() {
                 </button>
               )}
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Potongan / Spread (Rp)
+            </label>
+            <input
+              type="number"
+              name="potongan"
+              value={formData.potongan}
+              onChange={handleChange}
+              placeholder="Opsional"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none text-black"
+            />
           </div>
 
           <div className="md:col-span-2">
