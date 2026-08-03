@@ -196,6 +196,7 @@ export default function PurchasesPage() {
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-900 uppercase">Perhiasan</th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-900 uppercase">Kadar</th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-900 uppercase">Berat</th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-900 uppercase">Potongan</th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-900 uppercase">Harga</th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-900 uppercase">Dibuat oleh</th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-900 uppercase">Aksi</th>
@@ -204,7 +205,7 @@ export default function PurchasesPage() {
             <tbody className="bg-white divide-y divide-gray-200">
               {purchases.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={10} className="px-6 py-12 text-center text-gray-500">
                     Tidak ada data pembelian
                   </td>
                 </tr>
@@ -224,6 +225,9 @@ export default function PurchasesPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {formatWeight(Number(item.berat))}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {item.potongan ? formatCurrency(Number(item.potongan)) : '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {formatCurrency(Number(item.harga))}

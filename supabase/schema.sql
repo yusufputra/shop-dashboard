@@ -155,6 +155,7 @@ CREATE TABLE IF NOT EXISTS pembelian_perhiasan (
   model VARCHAR(100) NOT NULL,
   berat DECIMAL(10, 2) NOT NULL,
   harga DECIMAL(15, 2) NOT NULL,
+  potongan DECIMAL(15, 2),
   keterangan TEXT,
   customer_id UUID REFERENCES customers(customer_id) ON DELETE SET NULL,
   created_by UUID REFERENCES login(user_id) ON DELETE SET NULL,
@@ -163,6 +164,7 @@ CREATE TABLE IF NOT EXISTS pembelian_perhiasan (
 );
 
 COMMENT ON COLUMN pembelian_perhiasan.kadar IS 'Kadar emas (contoh: 18, 22, 24)';
+COMMENT ON COLUMN pembelian_perhiasan.potongan IS 'Potongan / spread pembelian (Rp, opsional)';
 COMMENT ON COLUMN pembelian_perhiasan.created_by IS 'user_id dari tabel login (sesi saat insert)';
 COMMENT ON COLUMN pembelian_perhiasan.created_by_nama IS 'Nama pengguna saat data dibuat';
 
