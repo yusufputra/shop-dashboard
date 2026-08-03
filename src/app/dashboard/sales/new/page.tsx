@@ -1,7 +1,7 @@
 'use client'
 
 import { alertDialog } from '@/lib/desktop/dialogs'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Save, Search, X } from 'lucide-react'
@@ -19,6 +19,10 @@ import { useDashboardAuth, useRoutePermissionGuard } from '@/app/dashboard/dashb
 import { createdByFields } from '@/lib/audit/created-by'
 import { BarcodeScanInput } from '@/components/barcode-scan-input'
 import { normalizePerhiasanForSelect } from '@/lib/perhiasan-options'
+import { sanitizeSearchTerm, searchOrExpression } from '@/lib/pagination'
+
+const INITIAL_STOCK_LIMIT = 50
+const SEARCH_STOCK_LIMIT = 100
 
 export default function NewSalePage() {
   useRoutePermissionGuard('sales', 'create')
@@ -30,8 +34,11 @@ export default function NewSalePage() {
   const [customerLookupMessage, setCustomerLookupMessage] = useState<string | null>(null)
   const [searchModalOpen, setSearchModalOpen] = useState(false)
   const [stockItems, setStockItems] = useState<StokPerhiasan[]>([])
+  const [stockSearchLoading, setStockSearchLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [selectedStock, setSelectedStock] = useState<StokPerhiasan | null>(null)
+  const stockSearchRequestId = useRef(0)
   const [formData, setFormData] = useState({
     no: generateSerialNumber('SALE'),
     tanggal: new Date().toISOString().split('T')[0],
@@ -44,31 +51,48 @@ export default function NewSalePage() {
     keterangan: ''
   })
 
-  const loadStockItems = useCallback(async () => {
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchTerm), 300)
+    return () => clearTimeout(timer)
+  }, [searchTerm])
+
+  const loadStockItems = useCallback(async (term: string) => {
+    const requestId = ++stockSearchRequestId.current
+    setStockSearchLoading(true)
     try {
-      const { data, error } = await supabase
+      const sanitized = sanitizeSearchTerm(term)
+      let query = supabase
         .from('stok_perhiasan')
         .select('*')
         .eq('status', 'available')
         .order('created_at', { ascending: false })
+        .limit(sanitized ? SEARCH_STOCK_LIMIT : INITIAL_STOCK_LIMIT)
 
+      if (sanitized) {
+        query = query.or(
+          searchOrExpression(['seri', 'perhiasan', 'jenis', 'model'], sanitized)
+        )
+      }
+
+      const { data, error } = await query
       if (error) throw error
+      if (requestId !== stockSearchRequestId.current) return
       setStockItems(data || [])
     } catch (error) {
+      if (requestId !== stockSearchRequestId.current) return
       console.error('Error loading stock items:', error)
+      setStockItems([])
+    } finally {
+      if (requestId === stockSearchRequestId.current) {
+        setStockSearchLoading(false)
+      }
     }
   }, [supabase])
 
   useEffect(() => {
-    loadStockItems()
-  }, [loadStockItems])
-
-  const filteredStockItems = stockItems.filter(item =>
-    item.seri.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.perhiasan.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.jenis.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.model.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+    if (!searchModalOpen) return
+    void loadStockItems(debouncedSearch)
+  }, [searchModalOpen, debouncedSearch, loadStockItems])
 
   const handleSelectStock = (stock: StokPerhiasan) => {
     setSelectedStock(stock)
@@ -78,22 +102,33 @@ export default function NewSalePage() {
     }))
     setSearchModalOpen(false)
     setSearchTerm('')
+    setDebouncedSearch('')
   }
 
-  const handleStockScan = (scannedValue: string) => {
+  const handleStockScan = async (scannedValue: string) => {
     const normalized = scannedValue.trim()
     if (!normalized) return
 
-    const exactMatch = stockItems.find(
-      (item) => item.seri.toLowerCase() === normalized.toLowerCase()
-    )
+    try {
+      const { data, error } = await supabase
+        .from('stok_perhiasan')
+        .select('*')
+        .eq('status', 'available')
+        .ilike('seri', normalized)
+        .maybeSingle()
 
-    if (exactMatch) {
-      handleSelectStock(exactMatch)
-      return
+      if (error) throw error
+
+      if (data) {
+        handleSelectStock(data)
+        return
+      }
+
+      setSearchTerm(normalized)
+    } catch (error) {
+      console.error('Error scanning stock item:', error)
+      setSearchTerm(normalized)
     }
-
-    setSearchTerm(normalized)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -477,6 +512,8 @@ export default function NewSalePage() {
                   onClick={() => {
                     setSearchModalOpen(false)
                     setSearchTerm('')
+                    setDebouncedSearch('')
+                    setStockItems([])
                   }}
                   className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                 >
@@ -501,13 +538,20 @@ export default function NewSalePage() {
             </div>
 
             <div className="p-6 overflow-y-auto max-h-[calc(80vh-180px)]">
-              {filteredStockItems.length === 0 ? (
+              {stockSearchLoading ? (
+                <div className="text-center py-12 text-gray-500">Mencari stok...</div>
+              ) : stockItems.length === 0 ? (
                 <div className="text-center py-12 text-gray-500">
-                  {searchTerm ? 'Tidak ada item yang cocok dengan pencarian' : 'Tidak ada stok tersedia'}
+                  {debouncedSearch ? 'Tidak ada item yang cocok dengan pencarian' : 'Tidak ada stok tersedia'}
                 </div>
               ) : (
                 <div className="grid grid-cols-1 gap-3">
-                  {filteredStockItems.map((item) => (
+                  {!debouncedSearch && (
+                    <p className="text-xs text-gray-500">
+                      Menampilkan {stockItems.length} stok terbaru. Ketik untuk mencari di database.
+                    </p>
+                  )}
+                  {stockItems.map((item) => (
                     <button
                       key={item.seri}
                       type="button"
