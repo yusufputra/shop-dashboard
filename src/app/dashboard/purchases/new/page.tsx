@@ -4,10 +4,10 @@ import { alertDialog } from '@/lib/desktop/dialogs'
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Save, TrendingUp } from 'lucide-react'
+import { ArrowLeft, Save, Search, TrendingUp } from 'lucide-react'
 import Link from 'next/link'
 import { generateSerialNumber, KADAR_K_OPTIONS, parseKadarKSelect } from '@/lib/utils'
-import { resolveCustomerIdByPublicId } from '@/lib/customers/resolve'
+import { fetchCustomerByPublicId, resolveCustomerIdByPublicId } from '@/lib/customers/resolve'
 import { useDashboardAuth, useRoutePermissionGuard } from '@/app/dashboard/dashboard-auth-context'
 import { createdByFields } from '@/lib/audit/created-by'
 
@@ -18,6 +18,8 @@ export default function NewPurchasePage() {
   const supabase = createClient()
   const [loading, setLoading] = useState(false)
   const [loadingPrice, setLoadingPrice] = useState(false)
+  const [customerLookupLoading, setCustomerLookupLoading] = useState(false)
+  const [customerLookupMessage, setCustomerLookupMessage] = useState<string | null>(null)
   const [goldPrice, setGoldPrice] = useState<number | null>(null)
   const [formData, setFormData] = useState({
     seri: generateSerialNumber('BUY'),
@@ -113,7 +115,41 @@ export default function NewPurchasePage() {
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    if (e.target.name === 'customer_public_id') {
+      setCustomerLookupMessage(null)
+    }
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }))
+  }
+
+  const lookupCustomerFromPublicId = async (raw: string) => {
+    const id = raw.trim()
+    if (!id) {
+      setCustomerLookupMessage(null)
+      return
+    }
+
+    setCustomerLookupLoading(true)
+    setCustomerLookupMessage(null)
+    try {
+      const row = await fetchCustomerByPublicId(supabase, id)
+      if (row) {
+        setFormData((prev) => ({
+          ...prev,
+          customer_public_id: id,
+          nama: row.nama,
+          alamat: row.alamat?.trim() ?? '',
+        }))
+        setCustomerLookupMessage('Pelanggan ditemukan - nama dan alamat sudah diisi otomatis.')
+      } else {
+        setFormData((prev) => ({
+          ...prev,
+          customer_public_id: id,
+        }))
+        setCustomerLookupMessage('Nomor pelanggan tidak terdaftar - isi data penjual secara manual.')
+      }
+    } finally {
+      setCustomerLookupLoading(false)
+    }
   }
 
   return (
@@ -185,7 +221,7 @@ export default function NewPurchasePage() {
               value={formData.nama}
               onChange={handleChange}
               required
-              placeholder="Nama pelanggan yang menjual emas"
+              placeholder="Terisi otomatis dari nomor pelanggan, atau ketik manual"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none text-black"
             />
           </div>
@@ -200,6 +236,7 @@ export default function NewPurchasePage() {
               value={formData.alamat}
               onChange={handleChange}
               required
+              placeholder="Terisi otomatis dari nomor pelanggan, atau ketik manual"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none text-black"
             />
           </div>
@@ -208,17 +245,48 @@ export default function NewPurchasePage() {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Nomor pelanggan (opsional)
             </label>
-            <input
-              type="text"
-              name="customer_public_id"
-              autoComplete="off"
-              value={formData.customer_public_id}
-              onChange={handleChange}
-              placeholder="Untuk menghubungkan ke profil & riwayat Pelanggan"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none text-black"
-            />
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
+              <input
+                type="text"
+                name="customer_public_id"
+                autoComplete="off"
+                value={formData.customer_public_id}
+                onChange={handleChange}
+                onBlur={(e) => {
+                  void lookupCustomerFromPublicId(e.target.value)
+                }}
+                placeholder="Isi dulu lalu klik Cari atau klik di luar kolom"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none text-black sm:flex-1"
+              />
+              <button
+                type="button"
+                disabled={customerLookupLoading}
+                onClick={() => void lookupCustomerFromPublicId(formData.customer_public_id)}
+                className="shrink-0 rounded-lg border border-green-600 bg-green-50 px-4 py-3 text-sm font-medium text-green-900 hover:bg-green-100 disabled:opacity-50"
+              >
+                {customerLookupLoading ? 'Mencari...' : (
+                  <span className="inline-flex items-center gap-2">
+                    <Search className="h-4 w-4" />
+                    Cari pelanggan
+                  </span>
+                )}
+              </button>
+            </div>
+            {customerLookupMessage && (
+              <p
+                className={`text-xs mt-1 font-medium ${
+                  customerLookupMessage.includes('ditemukan')
+                    ? 'text-green-700'
+                    : customerLookupMessage.includes('tidak terdaftar')
+                      ? 'text-red-700'
+                      : 'text-gray-700'
+                }`}
+              >
+                {customerLookupMessage}
+              </p>
+            )}
             <p className="text-xs text-gray-500 mt-1">
-              Hanya untuk pencatatan; poin hadiah hanya dari penjualan ke pelanggan (menu Penjualan).
+              Jika nomor pelanggan valid, nama dan alamat terisi otomatis. Jika tidak, isi manual. Poin hadiah hanya dari penjualan ke pelanggan (menu Penjualan).
             </p>
           </div>
 
